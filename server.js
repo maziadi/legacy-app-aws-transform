@@ -150,8 +150,12 @@ app.get('/logout', async function (req, res, next) {
 });
 
 // ---- DASHBOARD ----
-app.get('/', requireLogin, function (req, res) {
-  res.redirect('/dashboard');
+app.get('/', requireLogin, async function (req, res, next) {
+  try {
+    res.redirect('/dashboard');
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.get('/dashboard', requireLogin, async function (req, res, next) {
