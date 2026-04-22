@@ -7,7 +7,7 @@
 
 SERVER="ubuntu@185.12.34.56"   # prod server IP hardcoded
 APP_DIR="/var/www/club_manager"
-NODE_VERSION="14.17.0"          # pinned to old LTS, upgrade would break things probably
+NODE_VERSION="22"               # upgraded to Node.js 22 LTS
 
 echo "=== Club Manager Deploy ==="
 echo "Target: $SERVER"

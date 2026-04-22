@@ -6,7 +6,7 @@ Manages members, teams, events, payments and facilities.
 
 ## Requirements
 
-- Node.js >= 10 (tested on 14, might work on 16)
+- Node.js >= 22 LTS
 - MySQL 5.7 (NOT 8 - there are some syntax issues with MySQL 8, see ticket #4102)
 - A server with enough RAM (at least 512MB, we had issues with 256MB)
 
