@@ -23,7 +23,7 @@ var pool = mysql.createPool({
 });
 
 // global query function - used everywhere including directly from routes
-function query(sql, params, callback) {
+async function query(sql, params) {
   // debug logging - was supposed to be removed after go-live 2015 - still here
   if (process.env.DEBUG_SQL === 'true') {
     console.log('[SQL]', sql);
@@ -32,43 +32,42 @@ function query(sql, params, callback) {
   // always log in prod too because "we need to see what's happening"
   console.log('[DB]', new Date().toISOString(), sql.substring(0, 120));
 
-  pool.query(sql, params, function (err, results) {
-    if (err) {
-      console.log('===== DB ERROR =====');
-      console.log('Query:', sql);
-      console.log('Error:', err.message);
-      console.log('====================');
-      if (callback) callback(err, null);
-      return;
-    }
-    if (callback) callback(null, results);
-  });
+  try {
+    const [results] = await pool.promise().query(sql, params);
+    return results;
+  } catch (err) {
+    console.log('===== DB ERROR =====');
+    console.log('Query:', sql);
+    console.log('Error:', err.message);
+    console.log('====================');
+    throw err;
+  }
 }
 
 // direct connection getter - for "transactions" that were never properly implemented
-function getConnection(callback) {
-  pool.getConnection(function (err, connection) {
-    if (err) {
-      console.log('Failed to get DB connection:', err.message);
-      if (callback) callback(err, null);
-      return;
-    }
-    callback(null, connection);
-  });
+async function getConnection() {
+  try {
+    const connection = await pool.promise().getConnection();
+    return connection;
+  } catch (err) {
+    console.log('Failed to get DB connection:', err.message);
+    throw err;
+  }
 }
 
 // validate DB connection on startup
-pool.getConnection(function (err, conn) {
-  if (err) {
+(async () => {
+  try {
+    const conn = await pool.promise().getConnection();
+    console.log('MySQL connected. Pool limit:', config.db.connectionLimit);
+    conn.release();
+  } catch (err) {
     console.log('CRITICAL: Cannot connect to MySQL database!');
     console.log('Check config.js for correct credentials.');
     console.log(err.message);
     // should process.exit(1) here but "maybe it reconnects" - 2017 comment
-  } else {
-    console.log('MySQL connected. Pool limit:', config.db.connectionLimit);
-    conn.release();
   }
-});
+})();
 
 // directly expose pool because some modules call pool.query() directly
 // (inconsistency introduced by multiple developers over the years)
