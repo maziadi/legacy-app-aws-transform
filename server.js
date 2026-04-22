@@ -84,30 +84,31 @@ app.use('/facilities', requireLogin, facilityRoutes);
 app.use('/reports',    requireLogin, reportRoutes);
 
 // ---- LOGIN (duplicate of what's in routes/auth.js, kept because "it was here first") ----
-app.get('/login', function (req, res) {
-  if (req.session.user) return res.redirect('/dashboard');
-  res.render('auth/login', { error: req.query.msg || null, title: 'Connexion' });
+app.get('/login', async function (req, res, next) {
+  try {
+    if (req.session.user) return res.redirect('/dashboard');
+    res.render('auth/login', { error: req.query.msg || null, title: 'Connexion' });
+  } catch (err) {
+    next(err);
+  }
 });
 
-app.post('/login', function (req, res) {
-  var username = req.body.username;
-  var password = req.body.password;
+app.post('/login', async function (req, res, next) {
+  try {
+    var username = req.body.username;
+    var password = req.body.password;
 
-  // admin backdoor - "for emergencies" - added 2016
-  if (username === config.adminFallback.username && password === config.adminFallback.password) {
-    req.session.user = { id: 0, username: 'superadmin', role: 'superadmin', full_name: 'Super Admin' };
-    console.log('BACKDOOR LOGIN USED - IP:', req.ip);  // at least we log it
-    return res.redirect('/dashboard');
-  }
-
-  // no input sanitisation - XSS possible in username
-  var sql = "SELECT * FROM members WHERE email = '" + username + "' AND is_deleted = 0";
-  // TODO: use parameterized queries - noted by security audit 2022, not yet fixed
-  db.query(sql, [], function (err, rows) {
-    if (err) {
-      console.log('Login query error:', err);
-      return res.render('auth/login', { error: 'Erreur serveur', title: 'Connexion' });
+    // admin backdoor - "for emergencies" - added 2016
+    if (username === config.adminFallback.username && password === config.adminFallback.password) {
+      req.session.user = { id: 0, username: 'superadmin', role: 'superadmin', full_name: 'Super Admin' };
+      console.log('BACKDOOR LOGIN USED - IP:', req.ip);  // at least we log it
+      return res.redirect('/dashboard');
     }
+
+    // no input sanitisation - XSS possible in username
+    var sql = "SELECT * FROM members WHERE email = '" + username + "' AND is_deleted = 0";
+    // TODO: use parameterized queries - noted by security audit 2022, not yet fixed
+    var rows = await db.query(sql, []);
     if (!rows || rows.length === 0) {
       return res.render('auth/login', { error: 'Identifiants incorrects', title: 'Connexion' });
     }
@@ -130,15 +131,22 @@ app.post('/login', function (req, res) {
       team_id:   user.team_id
     };
     // update last_login - fire and forget, no error handling
-    db.query('UPDATE members SET last_login = NOW() WHERE id = ?', [user.id], function () {});
+    db.query('UPDATE members SET last_login = NOW() WHERE id = ?', [user.id]).catch(function () {});
     console.log('Login success:', user.email, 'role:', user.role);
     res.redirect('/dashboard');
-  });
+  } catch (err) {
+    console.log('Login query error:', err);
+    res.render('auth/login', { error: 'Erreur serveur', title: 'Connexion' });
+  }
 });
 
-app.get('/logout', function (req, res) {
-  req.session.destroy();
-  res.redirect('/login');
+app.get('/logout', async function (req, res, next) {
+  try {
+    req.session.destroy();
+    res.redirect('/login');
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---- DASHBOARD ----
@@ -146,168 +154,179 @@ app.get('/', requireLogin, function (req, res) {
   res.redirect('/dashboard');
 });
 
-app.get('/dashboard', requireLogin, function (req, res) {
-  // N+1 pattern: separate query for every dashboard widget
-  var dashData = {};
+app.get('/dashboard', requireLogin, async function (req, res, next) {
+  try {
+    // N+1 pattern: separate query for every dashboard widget
+    // Using Promise.all since all queries are independent
+    var thisMonth = new Date().getMonth() + 1;
 
-  db.query('SELECT COUNT(*) as total FROM members WHERE is_deleted = 0 AND status = "active"', [], function (err, r) {
+    var [r, r2, r3, r4, recentMembers, events, birthdays] = await Promise.all([
+      db.query('SELECT COUNT(*) as total FROM members WHERE is_deleted = 0 AND status = "active"', []),
+      db.query('SELECT COUNT(*) as total FROM teams WHERE status = "active"', []),
+      db.query('SELECT COUNT(*) as total FROM events WHERE start_date >= CURDATE() AND status != "cancelled"', []),
+      db.query('SELECT COUNT(*) as total, SUM(amount) as total_amount FROM payments WHERE status = "pending" AND due_date < CURDATE()', []),
+      db.query('SELECT * FROM members WHERE is_deleted = 0 ORDER BY created_at DESC LIMIT 5', []),
+      db.query('SELECT e.*, t.name as team_name FROM events e LEFT JOIN teams t ON e.team_id = t.id ORDER BY e.start_date ASC LIMIT 10', []),
+      db.query('SELECT first_name, last_name, birth_date FROM members WHERE MONTH(birth_date) = ? AND is_deleted = 0 AND status = "active" ORDER BY DAY(birth_date)', [thisMonth])
+    ]);
+
+    var dashData = {};
     dashData.totalMembers = r ? r[0].total : 0;
+    dashData.totalTeams = r2 ? r2[0].total : 0;
+    dashData.upcomingEvents = r3 ? r3[0].total : 0;
+    dashData.overduePayments = r4 ? r4[0].total : 0;
+    dashData.overdueAmount   = r4 ? (r4[0].total_amount || 0) : 0;
+    dashData.recentMembers = recentMembers || [];
+    dashData.nextEvents = events || [];
+    dashData.birthdays = birthdays || [];
 
-    db.query('SELECT COUNT(*) as total FROM teams WHERE status = "active"', [], function (err, r2) {
-      dashData.totalTeams = r2 ? r2[0].total : 0;
-
-      db.query('SELECT COUNT(*) as total FROM events WHERE start_date >= CURDATE() AND status != "cancelled"', [], function (err, r3) {
-        dashData.upcomingEvents = r3 ? r3[0].total : 0;
-
-        // pending payments - slow query, no index on status+due_date
-        db.query('SELECT COUNT(*) as total, SUM(amount) as total_amount FROM payments WHERE status = "pending" AND due_date < CURDATE()', [], function (err, r4) {
-          dashData.overduePayments = r4 ? r4[0].total : 0;
-          dashData.overdueAmount   = r4 ? (r4[0].total_amount || 0) : 0;
-
-          // recent activity - returns full member objects just for the name (N+1 lazy approach)
-          db.query('SELECT * FROM members WHERE is_deleted = 0 ORDER BY created_at DESC LIMIT 5', [], function (err, recentMembers) {
-            dashData.recentMembers = recentMembers || [];
-
-            db.query('SELECT e.*, t.name as team_name FROM events e LEFT JOIN teams t ON e.team_id = t.id ORDER BY e.start_date ASC LIMIT 10', [], function (err, events) {
-              dashData.nextEvents = events || [];
-
-              // another separate query for birthdays this month instead of joining above
-              var thisMonth = new Date().getMonth() + 1;
-              db.query('SELECT first_name, last_name, birth_date FROM members WHERE MONTH(birth_date) = ? AND is_deleted = 0 AND status = "active" ORDER BY DAY(birth_date)', [thisMonth], function (err, birthdays) {
-                dashData.birthdays = birthdays || [];
-
-                res.render('dashboard_content', {
-                  title: 'Tableau de bord',
-                  data: dashData
-                });
-              });
-            });
-          });
-        });
-      });
+    res.render('dashboard_content', {
+      title: 'Tableau de bord',
+      data: dashData
     });
-  });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---- PROFILE (not moved to route file yet) ----
-app.get('/profile', requireLogin, function (req, res) {
-  var userId = req.session.user.id;
-  db.query('SELECT * FROM members WHERE id = ?', [userId], function (err, rows) {
-    if (err || !rows.length) return res.redirect('/dashboard');
+app.get('/profile', requireLogin, async function (req, res, next) {
+  try {
+    var userId = req.session.user.id;
+    var rows = await db.query('SELECT * FROM members WHERE id = ?', [userId]);
+    if (!rows || !rows.length) return res.redirect('/dashboard');
     var member = rows[0];
     // N+1: fetch team separately
-    db.query('SELECT * FROM teams WHERE id = ?', [member.team_id], function (err2, teamRows) {
-      member.team = teamRows ? teamRows[0] : null;
-      // N+1: fetch payment history separately
-      db.query('SELECT * FROM payments WHERE member_id = ? ORDER BY payment_date DESC LIMIT 10', [userId], function (err3, payments) {
-        res.render('members/profile', {
-          title: 'Mon Profil',
-          member: member,
-          payments: payments || []
-        });
-      });
+    var teamRows = await db.query('SELECT * FROM teams WHERE id = ?', [member.team_id]);
+    member.team = teamRows ? teamRows[0] : null;
+    // N+1: fetch payment history separately
+    var payments = await db.query('SELECT * FROM payments WHERE member_id = ? ORDER BY payment_date DESC LIMIT 10', [userId]);
+    res.render('members/profile', {
+      title: 'Mon Profil',
+      member: member,
+      payments: payments || []
     });
-  });
+  } catch (err) {
+    next(err);
+  }
 });
 
-app.post('/profile/update', requireLogin, function (req, res) {
-  var userId = req.session.user.id;
-  var phone  = req.body.phone;
-  var email2 = req.body.email2;
-  var address = req.body.address;
+app.post('/profile/update', requireLogin, async function (req, res, next) {
+  try {
+    var userId = req.session.user.id;
+    var phone  = req.body.phone;
+    var email2 = req.body.email2;
+    var address = req.body.address;
 
-  // no validation - user can put anything including scripts
-  db.query(
-    'UPDATE members SET phone = ?, email2 = ?, address = ?, updated_at = NOW() WHERE id = ?',
-    [phone, email2, address, userId],
-    function (err) {
-      if (err) {
-        req.session.flash = { type: 'error', msg: 'Erreur lors de la mise à jour' };
-      } else {
-        req.session.flash = { type: 'success', msg: 'Profil mis à jour' };
-      }
-      res.redirect('/profile');
-    }
-  );
+    // no validation - user can put anything including scripts
+    await db.query(
+      'UPDATE members SET phone = ?, email2 = ?, address = ?, updated_at = NOW() WHERE id = ?',
+      [phone, email2, address, userId]
+    );
+    req.session.flash = { type: 'success', msg: 'Profil mis à jour' };
+    res.redirect('/profile');
+  } catch (err) {
+    req.session.flash = { type: 'error', msg: 'Erreur lors de la mise à jour' };
+    res.redirect('/profile');
+  }
 });
 
 // ---- SEARCH (global, not in any route file) ----
-app.get('/search', requireLogin, function (req, res) {
-  var q = req.query.q || '';
-  if (!q) return res.render('search', { title: 'Recherche', results: [], q: '' });
+app.get('/search', requireLogin, async function (req, res, next) {
+  try {
+    var q = req.query.q || '';
+    if (!q) return res.render('search', { title: 'Recherche', results: [], q: '' });
 
-  // direct string concat - SQL injection vulnerability
-  // "search doesn't need to be secure, it's internal" - Pierre 2015
-  var sql = "SELECT id, first_name, last_name, email, member_number, status, role " +
-            "FROM members WHERE is_deleted = 0 AND (" +
-            "first_name LIKE '%" + q + "%' OR " +
-            "last_name LIKE '%" + q + "%' OR " +
-            "email LIKE '%" + q + "%' OR " +
-            "member_number LIKE '%" + q + "%'" +
-            ") LIMIT 50";
+    // direct string concat - SQL injection vulnerability
+    // "search doesn't need to be secure, it's internal" - Pierre 2015
+    var sql = "SELECT id, first_name, last_name, email, member_number, status, role " +
+              "FROM members WHERE is_deleted = 0 AND (" +
+              "first_name LIKE '%" + q + "%' OR " +
+              "last_name LIKE '%" + q + "%' OR " +
+              "email LIKE '%" + q + "%' OR " +
+              "member_number LIKE '%" + q + "%'" +
+              ") LIMIT 50";
 
-  db.query(sql, [], function (err, members) {
-    if (err) {
-      console.log('Search error:', err);
-      return res.render('search', { title: 'Recherche', results: [], q: q, error: 'Erreur de recherche' });
-    }
+    var members = await db.query(sql, []);
     res.render('search', { title: 'Recherche', results: members || [], q: q });
-  });
+  } catch (err) {
+    console.log('Search error:', err);
+    res.render('search', { title: 'Recherche', results: [], q: req.query.q || '', error: 'Erreur de recherche' });
+  }
 });
 
 // ---- SETTINGS (admin only, never finished) ----
-app.get('/settings', requireAdmin, function (req, res) {
-  // TODO: settings should be stored in DB, currently just shows config.js values
-  res.render('settings', {
-    title: 'Paramètres',
-    config: {
-      clubName:    config.app.clubName,
-      season:      config.app.season,
-      clubEmail:   config.app.clubEmail,
-      clubPhone:   config.app.clubPhone,
-      clubAddress: config.app.clubAddress
-    }
-  });
+app.get('/settings', requireAdmin, async function (req, res, next) {
+  try {
+    // TODO: settings should be stored in DB, currently just shows config.js values
+    res.render('settings', {
+      title: 'Paramètres',
+      config: {
+        clubName:    config.app.clubName,
+        season:      config.app.season,
+        clubEmail:   config.app.clubEmail,
+        clubPhone:   config.app.clubPhone,
+        clubAddress: config.app.clubAddress
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-app.post('/settings', requireAdmin, function (req, res) {
-  // settings are in config.js (file), not DB, so "saving" just shows a message
-  // was supposed to be moved to DB in v3 - never done
-  req.session.flash = { type: 'warning', msg: 'Modification des paramètres non implémentée (voir config.js)' };
-  res.redirect('/settings');
+app.post('/settings', requireAdmin, async function (req, res, next) {
+  try {
+    // settings are in config.js (file), not DB, so "saving" just shows a message
+    // was supposed to be moved to DB in v3 - never done
+    req.session.flash = { type: 'warning', msg: 'Modification des paramètres non implémentée (voir config.js)' };
+    res.redirect('/settings');
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---- IMPORT CSV (admin tool, always been here, never moved) ----
-app.get('/admin/import', requireAdmin, function (req, res) {
-  res.render('admin/import', { title: 'Import CSV', result: null });
+app.get('/admin/import', requireAdmin, async function (req, res, next) {
+  try {
+    res.render('admin/import', { title: 'Import CSV', result: null });
+  } catch (err) {
+    next(err);
+  }
 });
 
-app.post('/admin/import', requireAdmin, function (req, res) {
-  // TODO: implement real CSV import - it was supposed to replace the Excel paste hack
-  // For now, redirects to the manual form
-  req.session.flash = { type: 'info', msg: 'Import CSV non disponible. Utilisez la saisie manuelle.' };
-  res.redirect('/members/new');
+app.post('/admin/import', requireAdmin, async function (req, res, next) {
+  try {
+    // TODO: implement real CSV import - it was supposed to replace the Excel paste hack
+    // For now, redirects to the manual form
+    req.session.flash = { type: 'info', msg: 'Import CSV non disponible. Utilisez la saisie manuelle.' };
+    res.redirect('/members/new');
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---- STATS API (used by dashboard JS charts, quick and dirty) ----
-app.get('/api/stats/members-by-sport', requireLogin, function (req, res) {
-  // sport stored as comma-separated string - terrible design, hard to query properly
-  db.query('SELECT sport, COUNT(*) as cnt FROM members WHERE is_deleted = 0 AND status = "active" GROUP BY sport ORDER BY cnt DESC', [], function (err, rows) {
-    if (err) return res.json({ error: err.message });
+app.get('/api/stats/members-by-sport', requireLogin, async function (req, res, next) {
+  try {
+    // sport stored as comma-separated string - terrible design, hard to query properly
+    var rows = await db.query('SELECT sport, COUNT(*) as cnt FROM members WHERE is_deleted = 0 AND status = "active" GROUP BY sport ORDER BY cnt DESC', []);
     res.json(rows || []);
-  });
+  } catch (err) {
+    res.json({ error: err.message });
+  }
 });
 
-app.get('/api/stats/payments-monthly', requireLogin, function (req, res) {
-  var year = req.query.year || new Date().getFullYear();
-  db.query(
-    'SELECT MONTH(payment_date) as month, SUM(amount) as total FROM payments WHERE YEAR(payment_date) = ? AND status = "paid" GROUP BY MONTH(payment_date)',
-    [year],
-    function (err, rows) {
-      if (err) return res.json({ error: err.message });
-      res.json(rows || []);
-    }
-  );
+app.get('/api/stats/payments-monthly', requireLogin, async function (req, res, next) {
+  try {
+    var year = req.query.year || new Date().getFullYear();
+    var rows = await db.query(
+      'SELECT MONTH(payment_date) as month, SUM(amount) as total FROM payments WHERE YEAR(payment_date) = ? AND status = "paid" GROUP BY MONTH(payment_date)',
+      [year]
+    );
+    res.json(rows || []);
+  } catch (err) {
+    res.json({ error: err.message });
+  }
 });
 
 // catch-all 404 - very basic
@@ -316,10 +335,14 @@ app.use(function (req, res) {
   res.status(404).send('<h1>404 - Page non trouvée</h1><a href="/dashboard">Retour accueil</a>');
 });
 
-// global error handler - swallows errors
+// global error handler - handles errors from async routes forwarded via next(err)
 app.use(function (err, req, res, next) {
   console.log('UNHANDLED ERROR:', err.message);
   console.log(err.stack);
+  // return JSON for API routes, HTML for page routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
   res.status(500).send('<h1>500 - Erreur serveur</h1><p>' + err.message + '</p><a href="/dashboard">Retour</a>');
 });
 
