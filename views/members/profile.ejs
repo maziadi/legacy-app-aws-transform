@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title>Mon Profil</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container main-content">
+  <h2><i class="fa fa-user"></i> Mon Profil</h2>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <div class="alert alert-<%= flash.type === 'success' ? 'success' : 'danger' %> alert-dismissible">
+    <button class="close" data-dismiss="alert">&times;</button><%= flash.msg %>
+  </div>
+  <% } %>
+  <div class="row">
+    <div class="col-md-6">
+      <div class="panel panel-default">
+        <div class="panel-heading">Informations</div>
+        <div class="panel-body">
+          <p><strong>Nom :</strong> <%= member.first_name %> <%= member.last_name %></p>
+          <p><strong>N° adhérent :</strong> <%= member.member_number %></p>
+          <p><strong>Email :</strong> <%= member.email %></p>
+          <p><strong>Équipe :</strong> <%= member.team_name || '-' %></p>
+          <p><strong>Adhésion valide jusqu'au :</strong> <%= member.renewal_date ? member.renewal_date.substring(0,10) : 'N/A' %></p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="panel panel-default">
+        <div class="panel-heading">Modifier mes informations</div>
+        <div class="panel-body">
+          <form method="POST" action="/profile/update">
+            <div class="form-group">
+              <label>Téléphone</label>
+              <input type="text" name="phone" class="form-control" value="<%= member.phone || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Email secondaire</label>
+              <input type="email" name="email2" class="form-control" value="<%= member.email2 || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Adresse</label>
+              <input type="text" name="address" class="form-control" value="<%= member.address || '' %>">
+            </div>
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="panel panel-default">
+    <div class="panel-heading">Mes paiements récents</div>
+    <table class="table table-condensed">
+      <thead><tr><th>Date</th><th>Type</th><th>Montant</th><th>Statut</th></tr></thead>
+      <tbody>
+        <% (payments || []).forEach(function(p) { %>
+        <tr>
+          <td><%= p.payment_date || '-' %></td>
+          <td><%= p.payment_type %></td>
+          <td><%= p.amount %> €</td>
+          <td><span class="label label-<%= p.status === 'paid' ? 'success' : 'warning' %>"><%= p.status %></span></td>
+        </tr>
+        <% }) %>
+        <% if (!payments || payments.length === 0) { %>
+        <tr><td colspan="4" class="text-center text-muted">Aucun paiement</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

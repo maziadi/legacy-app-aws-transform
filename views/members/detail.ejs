@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+
+  <ol class="breadcrumb">
+    <li><a href="/members">Membres</a></li>
+    <li class="active"><%= member.first_name %> <%= member.last_name %></li>
+  </ol>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <div class="alert alert-<%= flash.type === 'success' ? 'success' : 'danger' %> alert-dismissible">
+    <button class="close" data-dismiss="alert">&times;</button><%= flash.msg %>
+  </div>
+  <% } %>
+
+  <div class="row">
+    <div class="col-md-4">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">
+            <i class="fa fa-user"></i>
+            <%= member.first_name %> <%= member.last_name.toUpperCase() %>
+            <!-- XSS potential: name rendered without escaping in some places -->
+          </h3>
+        </div>
+        <div class="panel-body">
+          <dl class="dl-horizontal" style="font-size:13px">
+            <dt>N° adhérent</dt><dd><strong><%= member.member_number %></strong></dd>
+            <dt>Email</dt><dd><a href="mailto:<%= member.email %>"><%= member.email %></a></dd>
+            <% if (member.phone) { %><dt>Téléphone</dt><dd><%= member.phone %></dd><% } %>
+            <dt>Genre</dt><dd><%= member.gender === 'M' ? 'Masculin' : member.gender === 'F' ? 'Féminin' : '-' %></dd>
+            <dt>Date de nais.</dt><dd><%= member.birth_date ? member.birth_date.substring(0,10) : '-' %></dd>
+            <dt>Âge stocké</dt><dd><%= member.age || '-' %> <small class="text-muted">(peut être inexact)</small></dd>
+            <dt>Adresse</dt><dd><%= member.address || '-' %><% if (member.city) { %>, <%= member.city %><% } %></dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="panel panel-<%= member.renewal_date && new Date(member.renewal_date) > new Date() ? 'success' : 'danger' %>">
+        <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-id-card"></i> Adhésion</h3></div>
+        <div class="panel-body">
+          <dl class="dl-horizontal" style="font-size:13px">
+            <dt>Rôle</dt>
+            <dd><span class="label label-<%= member.role === 'admin' ? 'danger' : member.role === 'coach' ? 'warning' : 'default' %>"><%= member.role %></span></dd>
+            <dt>Statut</dt>
+            <dd><span class="label label-<%= member.status === 'active' ? 'success' : 'default' %>"><%= member.status %></span></dd>
+            <dt>Type</dt><dd><%= member.subscription_type || '-' %></dd>
+            <dt>Montant</dt><dd><%= member.subscription_amount ? member.subscription_amount + ' €' : '-' %></dd>
+            <dt>Inscrit le</dt><dd><%= member.join_date || '-' %></dd>
+            <dt>Renouvellement</dt>
+            <dd>
+              <%= member.renewal_date ? member.renewal_date.substring(0,10) : '-' %>
+              <% if (member.renewal_date && new Date(member.renewal_date) < new Date()) { %>
+              <span class="label label-danger">EXPIRÉE</span>
+              <% } %>
+            </dd>
+            <dt>Total payé</dt><dd><strong><%= member.total_paid || '0' %> €</strong></dd>
+            <dt>Sport(s)</dt><dd><%= member.sport || '-' %></dd>
+            <dt>Équipe</dt><dd><%= member.team_name || '-' %></dd>
+          </dl>
+
+          <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin')) { %>
+          <hr>
+          <form method="POST" action="/members/<%= member.id %>/renew" style="display:inline">
+            <select name="subscription_type" class="form-control input-sm" style="margin-bottom:5px">
+              <option value="annual_adult">Adulte (280€)</option>
+              <option value="annual_junior">Junior (150€)</option>
+              <option value="annual_family">Famille (450€)</option>
+            </select>
+            <select name="payment_method" class="form-control input-sm" style="margin-bottom:5px">
+              <option value="cash">Espèces</option>
+              <option value="check">Chèque</option>
+              <option value="card">Carte</option>
+              <option value="transfer">Virement</option>
+            </select>
+            <button type="submit" class="btn btn-success btn-sm btn-block" onclick="return confirm('Renouveler l\'adhésion ?')">
+              <i class="fa fa-refresh"></i> Renouveler
+            </button>
+          </form>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="panel panel-default">
+        <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-cog"></i> Actions</h3></div>
+        <div class="panel-body">
+          <a href="/members/<%= member.id %>/edit" class="btn btn-primary btn-block" style="margin-bottom:5px">
+            <i class="fa fa-pencil"></i> Modifier
+          </a>
+          <a href="/members/<%= member.id %>/certificate" class="btn btn-default btn-block" style="margin-bottom:5px" target="_blank">
+            <i class="fa fa-file-text"></i> Certificat adhésion
+          </a>
+          <a href="/payments/new?member_id=<%= member.id %>" class="btn btn-success btn-block" style="margin-bottom:5px">
+            <i class="fa fa-euro"></i> Enregistrer paiement
+          </a>
+          <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin')) { %>
+          <hr>
+          <form method="POST" action="/members/<%= member.id %>/delete" onsubmit="return confirm('Archiver ce membre ?')">
+            <button type="submit" class="btn btn-danger btn-block btn-sm">
+              <i class="fa fa-archive"></i> Archiver membre
+            </button>
+          </form>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment history -->
+  <div class="panel panel-default">
+    <div class="panel-heading"><i class="fa fa-history"></i> Historique des paiements</div>
+    <div class="panel-body" style="padding:0">
+      <table class="table table-condensed table-hover" style="margin:0">
+        <thead><tr><th>Date</th><th>Type</th><th>Montant</th><th>Méthode</th><th>Statut</th><th>Description</th></tr></thead>
+        <tbody>
+          <% (member.payments || []).forEach(function(p) { %>
+          <tr>
+            <td><small><%= p.payment_date || '-' %></small></td>
+            <td><small><%= p.payment_type %></small></td>
+            <td><strong><%= p.amount %> €</strong></td>
+            <td><small><%= p.payment_method %></small></td>
+            <td><span class="label label-<%= p.status === 'paid' ? 'success' : p.status === 'pending' ? 'warning' : 'danger' %>"><%= p.status %></span></td>
+            <td><small><%= p.description || '-' %></small></td>
+          </tr>
+          <% }) %>
+          <% if (!member.payments || member.payments.length === 0) { %>
+          <tr><td colspan="6" class="text-center text-muted">Aucun paiement enregistré</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <% if (member.internal_notes) { %>
+  <div class="alert alert-info">
+    <strong>Notes internes:</strong> <%- member.internal_notes %>
+    <!-- XSS: internal_notes rendered without escaping -->
+  </div>
+  <% } %>
+
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

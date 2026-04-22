@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - <%= clubName %></title>
+  <!-- Bootstrap 3 (not 4 or 5 - "it works so don't touch it" - 2015) -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<% if (currentUser) { %>
+<nav class="navbar navbar-default navbar-fixed-top">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/dashboard">
+        <i class="fa fa-futbol-o"></i> <%= clubName %>
+      </a>
+    </div>
+    <div class="collapse navbar-collapse" id="navbar">
+      <ul class="nav navbar-nav">
+        <li class="<%= typeof activeMenu !== 'undefined' && activeMenu === 'members' ? 'active' : '' %>">
+          <a href="/members"><i class="fa fa-users"></i> Membres</a>
+        </li>
+        <li class="<%= typeof activeMenu !== 'undefined' && activeMenu === 'teams' ? 'active' : '' %>">
+          <a href="/teams"><i class="fa fa-shield"></i> Équipes</a>
+        </li>
+        <li class="<%= typeof activeMenu !== 'undefined' && activeMenu === 'events' ? 'active' : '' %>">
+          <a href="/events"><i class="fa fa-calendar"></i> Événements</a>
+        </li>
+        <li class="<%= typeof activeMenu !== 'undefined' && activeMenu === 'facilities' ? 'active' : '' %>">
+          <a href="/facilities"><i class="fa fa-building"></i> Installations</a>
+        </li>
+        <% if (currentUser.role === 'admin' || currentUser.role === 'superadmin') { %>
+        <li class="<%= typeof activeMenu !== 'undefined' && activeMenu === 'payments' ? 'active' : '' %>">
+          <a href="/payments"><i class="fa fa-euro"></i> Paiements</a>
+        </li>
+        <li class="<%= typeof activeMenu !== 'undefined' && activeMenu === 'reports' ? 'active' : '' %>">
+          <a href="/reports"><i class="fa fa-bar-chart"></i> Rapports</a>
+        </li>
+        <% } %>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+          <form class="navbar-form" method="GET" action="/search">
+            <div class="input-group">
+              <input type="text" class="form-control" name="q" placeholder="Rechercher..." style="width:180px">
+              <span class="input-group-btn">
+                <button class="btn btn-default" type="submit"><i class="fa fa-search"></i></button>
+              </span>
+            </div>
+          </form>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+            <i class="fa fa-user"></i> <%= currentUser.full_name %> <span class="caret"></span>
+          </a>
+          <ul class="dropdown-menu">
+            <li><a href="/profile"><i class="fa fa-id-card"></i> Mon profil</a></li>
+            <% if (currentUser.role === 'admin' || currentUser.role === 'superadmin') { %>
+            <li><a href="/settings"><i class="fa fa-cog"></i> Paramètres</a></li>
+            <% } %>
+            <li class="divider"></li>
+            <li><a href="/logout"><i class="fa fa-sign-out"></i> Déconnexion</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+<% } %>
+
+<div class="<%= currentUser ? 'container-fluid main-content' : '' %>">
+
+  <% if (flash) { %>
+  <div class="alert alert-<%= flash.type === 'success' ? 'success' : flash.type === 'error' ? 'danger' : flash.type === 'warning' ? 'warning' : 'info' %> alert-dismissible">
+    <button type="button" class="close" data-dismiss="alert">&times;</button>
+    <%= flash.msg %>
+  </div>
+  <% } %>
+
+  <%- body %>
+
+</div>
+
+<!-- jQuery + Bootstrap 3 JS (CDN, no local copy, needs internet) -->
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

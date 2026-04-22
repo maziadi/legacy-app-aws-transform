@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title>Import données</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container main-content">
+  <h2>Import de données CSV</h2>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <div class="alert alert-info alert-dismissible"><button class="close" data-dismiss="alert">&times;</button><%= flash.msg %></div>
+  <% } %>
+  <div class="alert alert-warning">
+    <strong>Import CSV non disponible.</strong><br>
+    Cette fonctionnalité était prévue pour la v3 (2021). En attendant, utiliser la saisie manuelle.<br>
+    <small>Note: l'ancien import Excel est disponible via le script <code>scripts/import_excel.js</code> (déprécié)</small>
+  </div>
+  <a href="/members/new" class="btn btn-primary">Saisie manuelle</a>
+  <a href="/members" class="btn btn-default">Retour liste membres</a>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

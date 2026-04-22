@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title>Recherche</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('partials/navbar') %>
+<div class="container-fluid main-content">
+  <h2>Résultats de recherche pour : "<%= q %>"</h2>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <table class="table table-hover">
+    <thead><tr><th>N°</th><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th></tr></thead>
+    <tbody>
+      <% (results || []).forEach(function(m) { %>
+      <tr>
+        <td><small><%= m.member_number %></small></td>
+        <td><a href="/members/<%= m.id %>"><strong><%= m.last_name.toUpperCase() %></strong> <%= m.first_name %></a></td>
+        <!-- XSS: q and names rendered without sanitization, came straight from DB query -->
+        <td><%= m.email %></td>
+        <td><span class="label label-default"><%= m.role %></span></td>
+        <td><span class="label label-<%= m.status === 'active' ? 'success' : 'default' %>"><%= m.status %></span></td>
+      </tr>
+      <% }) %>
+      <% if (!results || results.length === 0) { %>
+      <tr><td colspan="5" class="text-center text-muted">Aucun résultat pour "<%= q %>"</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

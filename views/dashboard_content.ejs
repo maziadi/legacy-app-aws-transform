@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - <%= clubName %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('partials/navbar') %>
+<div class="container-fluid main-content">
+
+  <% if (flash) { %>
+  <div class="alert alert-<%= flash.type === 'success' ? 'success' : 'danger' %> alert-dismissible">
+    <button type="button" class="close" data-dismiss="alert">&times;</button>
+    <%= flash.msg %>
+  </div>
+  <% } %>
+
+  <div class="page-header">
+    <h2><i class="fa fa-tachometer"></i> Tableau de bord
+      <small>Saison <%= season %></small>
+    </h2>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="row">
+    <div class="col-sm-6 col-md-3">
+      <div class="panel panel-primary">
+        <div class="panel-body kpi-card">
+          <div class="kpi-number"><%= data.totalMembers %></div>
+          <div class="kpi-label"><i class="fa fa-users"></i> Membres actifs</div>
+        </div>
+        <div class="panel-footer"><a href="/members">Voir les membres <i class="fa fa-arrow-right"></i></a></div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="panel panel-success">
+        <div class="panel-body kpi-card">
+          <div class="kpi-number"><%= data.totalTeams %></div>
+          <div class="kpi-label"><i class="fa fa-shield"></i> Équipes</div>
+        </div>
+        <div class="panel-footer"><a href="/teams">Voir les équipes <i class="fa fa-arrow-right"></i></a></div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="panel panel-info">
+        <div class="panel-body kpi-card">
+          <div class="kpi-number"><%= data.upcomingEvents %></div>
+          <div class="kpi-label"><i class="fa fa-calendar"></i> Événements à venir</div>
+        </div>
+        <div class="panel-footer"><a href="/events">Voir le calendrier <i class="fa fa-arrow-right"></i></a></div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <div class="panel <%= data.overduePayments > 0 ? 'panel-danger' : 'panel-warning' %>">
+        <div class="panel-body kpi-card">
+          <div class="kpi-number"><%= data.overduePayments %></div>
+          <div class="kpi-label"><i class="fa fa-exclamation-triangle"></i> Paiements en retard</div>
+          <% if (data.overdueAmount > 0) { %>
+          <small class="text-muted"><%= parseFloat(data.overdueAmount).toFixed(2) %> €</small>
+          <% } %>
+        </div>
+        <div class="panel-footer"><a href="/payments/overdue">Voir les retards <i class="fa fa-arrow-right"></i></a></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Recent members -->
+    <div class="col-md-6">
+      <div class="panel panel-default">
+        <div class="panel-heading"><i class="fa fa-user-plus"></i> Derniers inscrits</div>
+        <div class="panel-body" style="padding:0">
+          <table class="table table-hover table-condensed" style="margin:0">
+            <tbody>
+              <% (data.recentMembers || []).forEach(function(m) { %>
+              <tr>
+                <td><a href="/members/<%= m.id %>"><%= m.first_name %> <%= m.last_name %></a></td>
+                <td><span class="label label-<%= m.role === 'coach' ? 'warning' : 'default' %>"><%= m.role %></span></td>
+                <td class="text-muted text-right" style="font-size:11px"><%= m.created_at ? m.created_at.substring(0,10) : '' %></td>
+              </tr>
+              <% }) %>
+              <% if (!data.recentMembers || data.recentMembers.length === 0) { %>
+              <tr><td colspan="3" class="text-center text-muted">Aucun membre récent</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+        <div class="panel-footer"><a href="/members/new">+ Ajouter un membre</a></div>
+      </div>
+    </div>
+
+    <!-- Upcoming events -->
+    <div class="col-md-6">
+      <div class="panel panel-default">
+        <div class="panel-heading"><i class="fa fa-calendar-check-o"></i> Prochains événements</div>
+        <div class="panel-body" style="padding:0">
+          <table class="table table-hover table-condensed" style="margin:0">
+            <tbody>
+              <% (data.nextEvents || []).forEach(function(e) { %>
+              <tr>
+                <td>
+                  <a href="/events/<%= e.id %>"><%= e.title %></a><br>
+                  <small class="text-muted"><%= e.team_name || e.team_name_join || '-' %></small>
+                </td>
+                <td class="text-right">
+                  <span class="label label-<%= e.event_type === 'match' ? 'danger' : e.event_type === 'training' ? 'info' : 'default' %>"><%= e.event_type %></span><br>
+                  <small><%= e.start_date ? e.start_date.substring(0,16).replace('T',' ') : '' %></small>
+                </td>
+              </tr>
+              <% }) %>
+              <% if (!data.nextEvents || data.nextEvents.length === 0) { %>
+              <tr><td colspan="2" class="text-center text-muted">Aucun événement prévu</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+        <div class="panel-footer"><a href="/events/new">+ Créer un événement</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Birthdays this month -->
+  <% if (data.birthdays && data.birthdays.length > 0) { %>
+  <div class="row">
+    <div class="col-md-12">
+      <div class="panel panel-warning">
+        <div class="panel-heading"><i class="fa fa-birthday-cake"></i> Anniversaires ce mois-ci</div>
+        <div class="panel-body">
+          <% data.birthdays.forEach(function(m) { %>
+          <span class="label label-warning" style="margin:2px; font-size:13px">
+            🎂 <%= m.first_name %> <%= m.last_name %> (<%= m.birth_date ? m.birth_date.substring(8,10) + '/' + m.birth_date.substring(5,7) : '' %>)
+          </span>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
+</div>
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

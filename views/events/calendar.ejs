@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+  <div class="page-header">
+    <h2><i class="fa fa-calendar-o"></i> Calendrier - <%= month %>
+      <a href="/events/calendar?month=<%= (function(){var d=new Date(month+'-01');d.setMonth(d.getMonth()-1);return d.toISOString().substring(0,7);})() %>" class="btn btn-default btn-sm pull-right" style="margin-left:5px">&larr; Mois préc.</a>
+      <a href="/events/calendar?month=<%= (function(){var d=new Date(month+'-01');d.setMonth(d.getMonth()+1);return d.toISOString().substring(0,7);})() %>" class="btn btn-default btn-sm pull-right">Mois suiv. &rarr;</a>
+    </h2>
+  </div>
+  <% (events || []).forEach(function(e) { %>
+  <div class="alert alert-<%= e.event_type === 'match' ? 'danger' : e.event_type === 'training' ? 'info' : 'default' %>" style="padding:8px 12px">
+    <strong><%= e.start_date ? e.start_date.substring(0,16).replace('T',' ') : '-' %></strong> &mdash;
+    <a href="/events/<%= e.id %>"><%= e.title %></a>
+    <span class="label label-default"><%= e.event_type %></span>
+    <% if (e.team_name) { %><small class="text-muted"> | <%= e.team_name %></small><% } %>
+  </div>
+  <% }) %>
+  <% if (!events || events.length === 0) { %>
+  <div class="alert alert-info">Aucun événement ce mois-ci</div>
+  <% } %>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

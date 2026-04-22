@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+  <ol class="breadcrumb"><li><a href="/reports">Rapports</a></li><li class="active">Financier</li></ol>
+  <h2>Rapport financier - <%= year %></h2>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <% if (report) { %>
+  <div class="row">
+    <div class="col-md-3"><div class="panel panel-success"><div class="panel-body text-center"><h3><%= parseFloat(report.total_collected || 0).toFixed(2) %> €</h3><small>Total encaissé</small></div></div></div>
+    <div class="col-md-3"><div class="panel panel-warning"><div class="panel-body text-center"><h3><%= parseFloat(report.total_pending || 0).toFixed(2) %> €</h3><small>En attente</small></div></div></div>
+    <div class="col-md-3"><div class="panel panel-danger"><div class="panel-body text-center"><h3><%= parseFloat(report.total_overdue || 0).toFixed(2) %> €</h3><small>En retard</small></div></div></div>
+    <div class="col-md-3"><div class="panel panel-info"><div class="panel-body text-center"><h3><%= report.total_transactions %></h3><small>Transactions</small></div></div></div>
+  </div>
+  <div class="row">
+    <div class="col-md-4">
+      <div class="panel panel-default">
+        <div class="panel-heading">Par catégorie</div>
+        <table class="table table-condensed">
+          <tr><td>Cotisations</td><td><strong><%= parseFloat(report.subscription_revenue || 0).toFixed(2) %> €</strong></td></tr>
+          <tr><td>Équipements</td><td><strong><%= parseFloat(report.equipment_revenue || 0).toFixed(2) %> €</strong></td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="panel panel-default">
+        <div class="panel-heading">Par mois</div>
+        <table class="table table-condensed">
+          <thead><tr><th>Mois</th><th>Recettes</th></tr></thead>
+          <tbody>
+            <% var moisFr = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']; %>
+            <% (report.monthly || []).forEach(function(m) { %>
+            <tr><td><%= moisFr[m.month] || m.month %></td><td><%= parseFloat(m.total).toFixed(2) %> €</td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <% } %>
+  <a href="/reports" class="btn btn-default">&larr; Retour</a>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

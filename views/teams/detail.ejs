@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+  <ol class="breadcrumb"><li><a href="/teams">Équipes</a></li><li class="active"><%= team.name %></li></ol>
+  <div class="page-header">
+    <h2><i class="fa fa-shield"></i> <%= team.name %>
+      <a href="/teams/<%= team.id %>/edit" class="btn btn-primary btn-sm pull-right">Modifier</a>
+    </h2>
+  </div>
+  <div class="row">
+    <div class="col-md-4">
+      <div class="panel panel-default">
+        <div class="panel-heading">Informations</div>
+        <div class="panel-body">
+          <p><strong>Sport :</strong> <%= team.sport %></p>
+          <p><strong>Catégorie :</strong> <%= team.category || '-' %></p>
+          <p><strong>Saison :</strong> <%= team.season || '-' %></p>
+          <p><strong>Entraîneur :</strong> <%= team.coach ? team.coach.first_name + ' ' + team.coach.last_name : team.coach_name || '-' %></p>
+          <p><strong>Joueurs :</strong> <%= (team.members || []).length %> / <%= team.max_players %></p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="panel panel-default">
+        <div class="panel-heading">Joueurs (<%= (team.members || []).length %>)</div>
+        <table class="table table-condensed table-hover">
+          <tbody>
+            <% (team.members || []).forEach(function(m) { %>
+            <tr>
+              <td><a href="/members/<%= m.id %>"><%= m.first_name %> <%= m.last_name %></a></td>
+              <td><span class="label label-<%= m.role === 'coach' ? 'warning' : 'default' %>"><%= m.role %></span></td>
+              <td><small class="text-muted"><%= m.email %></small></td>
+            </tr>
+            <% }) %>
+            <% if (!team.members || team.members.length === 0) { %>
+            <tr><td colspan="3" class="text-center text-muted">Aucun joueur dans cette équipe</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="panel panel-default">
+    <div class="panel-heading">Événements récents</div>
+    <table class="table table-condensed">
+      <tbody>
+        <% (team.events || []).forEach(function(e) { %>
+        <tr>
+          <td><a href="/events/<%= e.id %>"><%= e.title %></a></td>
+          <td><span class="label label-<%= e.event_type === 'match' ? 'danger' : 'info' %>"><%= e.event_type %></span></td>
+          <td><%= e.start_date ? e.start_date.substring(0,10) : '-' %></td>
+          <td>
+            <% if (e.result) { %>
+            <span class="label label-<%= e.result === 'win' ? 'success' : e.result === 'loss' ? 'danger' : 'warning' %>">
+              <%= e.home_score %> - <%= e.away_score %> (<%= e.result %>)
+            </span>
+            <% } else { %>
+            <span class="label label-default"><%= e.status %></span>
+            <% } %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

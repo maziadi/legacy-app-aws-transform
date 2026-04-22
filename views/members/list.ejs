@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+
+  <div class="page-header">
+    <h2><i class="fa fa-users"></i> Membres
+      <a href="/members/new" class="btn btn-success btn-sm pull-right"><i class="fa fa-plus"></i> Nouveau</a>
+      <a href="/members/export/csv" class="btn btn-default btn-sm pull-right" style="margin-right:5px"><i class="fa fa-download"></i> Export CSV</a>
+    </h2>
+  </div>
+
+  <!-- filters - inline form without validation -->
+  <form method="GET" action="/members" class="form-inline" style="margin-bottom:15px">
+    <div class="form-group">
+      <select name="status" class="form-control input-sm">
+        <option value="active"   <%= filters.status === 'active'   ? 'selected' : '' %>>Actifs</option>
+        <option value="inactive" <%= filters.status === 'inactive' ? 'selected' : '' %>>Inactifs</option>
+        <option value=""         <%= !filters.status               ? 'selected' : '' %>>Tous</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <select name="team_id" class="form-control input-sm">
+        <option value="">Toutes les équipes</option>
+        <% (teams || []).forEach(function(t) { %>
+        <option value="<%= t.id %>" <%= filters.team_id == t.id ? 'selected' : '' %>><%= t.name %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="form-group">
+      <select name="role" class="form-control input-sm">
+        <option value="">Tous les rôles</option>
+        <option value="member" <%= filters.role === 'member' ? 'selected' : '' %>>Membres</option>
+        <option value="coach"  <%= filters.role === 'coach'  ? 'selected' : '' %>>Entraîneurs</option>
+        <option value="admin"  <%= filters.role === 'admin'  ? 'selected' : '' %>>Admins</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+    <a href="/members" class="btn btn-default btn-sm">Reset</a>
+  </form>
+
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <div class="alert alert-<%= flash.type === 'success' ? 'success' : 'danger' %> alert-dismissible">
+    <button class="close" data-dismiss="alert">&times;</button><%= flash.msg %>
+  </div>
+  <% } %>
+
+  <div class="panel panel-default">
+    <div class="panel-body" style="padding:0">
+      <table class="table table-striped table-hover table-condensed" style="margin:0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nom</th>
+            <th>Email</th>
+            <th>Téléphone</th>
+            <th>Équipe</th>
+            <th>Rôle</th>
+            <th>Statut abonn.</th>
+            <th>Dernière cotis.</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% (members || []).forEach(function(m) { %>
+          <tr class="<%= m.expired ? 'warning' : '' %>">
+            <td><small class="text-muted"><%= m.member_number %></small></td>
+            <td>
+              <a href="/members/<%= m.id %>">
+                <strong><%= m.last_name.toUpperCase() %></strong> <%= m.first_name %>
+              </a>
+            </td>
+            <td><small><%= m.email %></small></td>
+            <td><small><%= m.phone || '-' %></small></td>
+            <td><small><%= m.team_name || '-' %></small></td>
+            <td>
+              <span class="label label-<%= m.role === 'admin' || m.role === 'superadmin' ? 'danger' : m.role === 'coach' ? 'warning' : 'default' %>">
+                <%= m.role %>
+              </span>
+            </td>
+            <td>
+              <% if (m.expired) { %>
+                <span class="label label-danger"><i class="fa fa-times"></i> Expirée</span>
+              <% } else { %>
+                <span class="label label-success"><i class="fa fa-check"></i> Valide</span>
+              <% } %>
+              <small class="text-muted"><%= m.renewal_date ? m.renewal_date.substring(0,10) : '-' %></small>
+            </td>
+            <td><small><%= m.last_payment_date ? m.last_payment_date.substring(0,10) : '-' %></small></td>
+            <td>
+              <a href="/members/<%= m.id %>" class="btn btn-xs btn-default" title="Voir"><i class="fa fa-eye"></i></a>
+              <a href="/members/<%= m.id %>/edit" class="btn btn-xs btn-primary" title="Modifier"><i class="fa fa-pencil"></i></a>
+            </td>
+          </tr>
+          <% }) %>
+          <% if (!members || members.length === 0) { %>
+          <tr><td colspan="9" class="text-center text-muted" style="padding:30px">Aucun membre trouvé</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel-footer text-muted"><%= (members || []).length %> membres affichés</div>
+  </div>
+
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

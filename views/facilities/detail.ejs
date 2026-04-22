@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+  <ol class="breadcrumb"><li><a href="/facilities">Installations</a></li><li class="active"><%= facility.name %></li></ol>
+  <div class="page-header">
+    <h2><i class="fa fa-building"></i> <%= facility.name %>
+      <a href="/facilities/<%= facility.id %>/schedule" class="btn btn-info btn-sm pull-right" style="margin-left:5px">Planning semaine</a>
+      <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin')) { %>
+      <a href="/facilities/<%= facility.id %>/edit" class="btn btn-primary btn-sm pull-right">Modifier</a>
+      <% } %>
+    </h2>
+  </div>
+  <div class="row">
+    <div class="col-md-4">
+      <div class="panel panel-default">
+        <div class="panel-heading">Infos</div>
+        <div class="panel-body">
+          <p><strong>Type :</strong> <%= facility.type %></p>
+          <p><strong>Capacité :</strong> <%= facility.capacity %> personnes</p>
+          <p><strong>Tarif :</strong> <%= facility.hourly_rate > 0 ? facility.hourly_rate + ' €/h' : 'Gratuit' %></p>
+          <p><strong>Adresse :</strong> <%= facility.address || '-' %></p>
+          <p><strong>Contact :</strong> <%= facility.contact_person || '-' %> <%= facility.contact_phone ? '(' + facility.contact_phone + ')' : '' %></p>
+          <p><strong>Disponible :</strong> <span class="label label-<%= facility.is_available ? 'success' : 'danger' %>"><%= facility.is_available ? 'Oui' : 'Non' %></span></p>
+          <% if (facility.notes) { %><p><strong>Notes :</strong> <%= facility.notes %></p><% } %>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="panel panel-default">
+        <div class="panel-heading">Réservations à venir (<%= (facility.bookings || []).length %>)</div>
+        <table class="table table-condensed">
+          <thead><tr><th>Date</th><th>Heure</th><th>Équipe</th><th>Objet</th><th>Statut</th></tr></thead>
+          <tbody>
+            <% (facility.bookings || []).forEach(function(b) { %>
+            <tr>
+              <td><%= b.start_time ? b.start_time.substring(0,10) : '-' %></td>
+              <td><small><%= b.start_time ? b.start_time.substring(11,16) : '-' %> - <%= b.end_time ? b.end_time.substring(11,16) : '-' %></small></td>
+              <td><%= b.team_name || '-' %></td>
+              <td><small><%= b.event_title || b.purpose || '-' %></small></td>
+              <td><span class="label label-<%= b.status === 'confirmed' ? 'success' : 'default' %>"><%= b.status %></span></td>
+            </tr>
+            <% }) %>
+            <% if (!facility.bookings || facility.bookings.length === 0) { %>
+            <tr><td colspan="5" class="text-center text-muted">Aucune réservation à venir</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

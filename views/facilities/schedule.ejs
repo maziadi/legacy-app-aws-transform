@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+  <ol class="breadcrumb"><li><a href="/facilities">Installations</a></li><li><a href="/facilities/<%= facility.id %>"><%= facility.name %></a></li><li class="active">Planning</li></ol>
+  <h2>Planning - <%= facility.name %></h2>
+  <p class="text-muted">Semaine du <%= weekStart %> au <%= weekEnd %></p>
+  <% if (bookings && bookings.length > 0) { %>
+  <table class="table table-bordered">
+    <thead><tr><th>Date</th><th>Heure début</th><th>Heure fin</th><th>Objet</th><th>Statut</th></tr></thead>
+    <tbody>
+      <% bookings.forEach(function(b) { %>
+      <tr>
+        <td><strong><%= b.start_time ? b.start_time.substring(0,10) : '-' %></strong></td>
+        <td><%= b.start_time ? b.start_time.substring(11,16) : '-' %></td>
+        <td><%= b.end_time ? b.end_time.substring(11,16) : '-' %></td>
+        <td><%= b.event_title || b.purpose || '-' %></td>
+        <td><span class="label label-success"><%= b.status %></span></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <div class="alert alert-info">Aucune réservation cette semaine</div>
+  <% } %>
+  <a href="/facilities/<%= facility.id %>" class="btn btn-default">&larr; Retour</a>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

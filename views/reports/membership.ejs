@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+  <ol class="breadcrumb"><li><a href="/reports">Rapports</a></li><li class="active">Adhésions</li></ol>
+  <h2>Rapport adhésions - <%= season %></h2>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <% if (report) { %>
+  <div class="row">
+    <div class="col-md-2"><div class="panel panel-primary"><div class="panel-body text-center"><h3><%= report.total_members %></h3><small>Total</small></div></div></div>
+    <div class="col-md-2"><div class="panel panel-success"><div class="panel-body text-center"><h3><%= report.active %></h3><small>Actifs</small></div></div></div>
+    <div class="col-md-2"><div class="panel panel-default"><div class="panel-body text-center"><h3><%= report.inactive %></h3><small>Inactifs</small></div></div></div>
+    <div class="col-md-2"><div class="panel panel-warning"><div class="panel-body text-center"><h3><%= report.coaches %></h3><small>Entraîneurs</small></div></div></div>
+    <div class="col-md-2"><div class="panel panel-info"><div class="panel-body text-center"><h3><%= report.male %></h3><small>Hommes</small></div></div></div>
+    <div class="col-md-2"><div class="panel panel-info"><div class="panel-body text-center"><h3><%= report.female %></h3><small>Femmes</small></div></div></div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <div class="panel panel-default">
+        <div class="panel-heading">Par sport</div>
+        <table class="table table-condensed">
+          <% (report.by_sport || []).forEach(function(s) { %>
+          <tr><td><%= s.sport || 'Non renseigné' %></td><td><strong><%= s.cnt %></strong></td></tr>
+          <% }) %>
+        </table>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="panel panel-default">
+        <div class="panel-heading">Par type d'abonnement</div>
+        <table class="table table-condensed">
+          <% (report.by_subscription || []).forEach(function(s) { %>
+          <tr><td><%= s.subscription_type %></td><td><strong><%= s.cnt %></strong></td><td><%= parseFloat(s.total || 0).toFixed(2) %> €</td></tr>
+          <% }) %>
+        </table>
+      </div>
+    </div>
+  </div>
+  <p><strong>Âge moyen :</strong> <%= report.avg_age ? parseFloat(report.avg_age).toFixed(1) + ' ans' : '-' %></p>
+  <% } %>
+  <a href="/reports" class="btn btn-default">&larr; Retour</a>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

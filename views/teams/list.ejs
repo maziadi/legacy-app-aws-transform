@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+  <div class="page-header">
+    <h2><i class="fa fa-shield"></i> Équipes
+      <a href="/teams/new" class="btn btn-success btn-sm pull-right"><i class="fa fa-plus"></i> Nouvelle équipe</a>
+    </h2>
+  </div>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <div class="row">
+    <% (teams || []).forEach(function(t) { %>
+    <div class="col-sm-6 col-md-4">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">
+            <i class="fa fa-shield"></i> <%= t.name %>
+            <span class="badge pull-right"><%= t.real_player_count || t.current_players || 0 %>/<%= t.max_players %></span>
+          </h3>
+        </div>
+        <div class="panel-body" style="font-size:13px">
+          <p><strong>Sport:</strong> <%= t.sport %> &bull; <strong>Catégorie:</strong> <%= t.category || '-' %></p>
+          <p><strong>Entraîneur:</strong> <%= t.coach_first ? t.coach_first + ' ' + t.coach_last : t.coach_name || '-' %></p>
+          <p><strong>Saison:</strong> <%= t.season || '-' %></p>
+          <% if (t.real_player_count != t.current_players) { %>
+          <p class="text-warning"><small><i class="fa fa-exclamation-triangle"></i> Compteur joueurs désynchronisé (<%= t.current_players %> stocké vs <%= t.real_player_count %> réel)</small></p>
+          <% } %>
+        </div>
+        <div class="panel-footer">
+          <a href="/teams/<%= t.id %>" class="btn btn-xs btn-default">Voir</a>
+          <a href="/teams/<%= t.id %>/edit" class="btn btn-xs btn-primary">Modifier</a>
+          <a href="/teams/<%= t.id %>/stats" class="btn btn-xs btn-info">Stats</a>
+        </div>
+      </div>
+    </div>
+    <% }) %>
+    <% if (!teams || teams.length === 0) { %>
+    <div class="col-md-12"><div class="alert alert-info">Aucune équipe active</div></div>
+    <% } %>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

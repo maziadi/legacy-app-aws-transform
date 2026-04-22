@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Mot de passe oublié</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>body { background: #2c3e50; } .box { max-width:400px; margin:80px auto; background:#fff; padding:30px; border-radius:4px; }</style>
+</head>
+<body>
+<div class="container">
+  <div class="box">
+    <h3>Mot de passe oublié</h3>
+    <% if (error)   { %><div class="alert alert-danger"><%= error %></div><% } %>
+    <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+    <% if (!success) { %>
+    <p class="text-muted">Entrez votre adresse email. Un mot de passe temporaire vous sera envoyé.</p>
+    <!-- NOTE: sends plaintext password by email - known issue, "will fix in v4" -->
+    <form method="POST" action="/auth/forgot-password">
+      <div class="form-group">
+        <input type="email" name="email" class="form-control" placeholder="votre@email.fr" required>
+      </div>
+      <button class="btn btn-primary btn-block">Envoyer</button>
+    </form>
+    <% } %>
+    <br>
+    <a href="/login">&larr; Retour connexion</a>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

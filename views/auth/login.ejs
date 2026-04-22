@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Connexion - Club Manager</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { background: #2c3e50; }
+    .login-box { max-width: 400px; margin: 80px auto; background: #fff; padding: 30px; border-radius: 4px; }
+    .club-logo { text-align: center; margin-bottom: 25px; color: #2c3e50; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="login-box">
+    <div class="club-logo">
+      <h2><i class="fa fa-futbol-o" style="color:#27ae60"></i> Club Manager</h2>
+      <p class="text-muted" style="font-size:12px">ASC Villejuif Football &amp; Sports</p>
+    </div>
+
+    <% if (error) { %>
+    <div class="alert alert-danger"><%= error %></div>
+    <% } %>
+    <% if (typeof success !== 'undefined' && success) { %>
+    <div class="alert alert-success"><%= success %></div>
+    <% } %>
+
+    <form method="POST" action="/login">
+      <div class="form-group">
+        <label>Email</label>
+        <!-- no autocomplete="off" - credentials cached in browser -->
+        <input type="text" name="username" class="form-control" placeholder="votre@email.fr" required>
+      </div>
+      <div class="form-group">
+        <label>Mot de passe</label>
+        <input type="password" name="password" class="form-control" placeholder="Mot de passe" required>
+      </div>
+      <button type="submit" class="btn btn-success btn-block btn-lg">Se connecter</button>
+    </form>
+
+    <div style="text-align:center; margin-top:15px">
+      <a href="/auth/forgot-password" style="font-size:12px; color:#999">Mot de passe oublié ?</a>
+    </div>
+
+    <hr>
+    <p style="font-size:11px; color:#ccc; text-align:center">
+      Club Manager v3.1 &bull; &copy; 2015-2024<br>
+      <!-- TODO: remove version from login page before audit -->
+    </p>
+  </div>
+</div>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

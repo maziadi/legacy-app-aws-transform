@@ -1,0 +1,54 @@
+<nav class="navbar navbar-default navbar-fixed-top">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#main-nav">
+        <span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/dashboard">
+        <i class="fa fa-futbol-o" style="color:#27ae60"></i> <strong><%= clubName %></strong>
+      </a>
+    </div>
+    <div class="collapse navbar-collapse" id="main-nav">
+      <ul class="nav navbar-nav">
+        <li><a href="/members"><i class="fa fa-users"></i> Membres</a></li>
+        <li><a href="/teams"><i class="fa fa-shield"></i> Équipes</a></li>
+        <li><a href="/events"><i class="fa fa-calendar"></i> Événements</a></li>
+        <li><a href="/facilities"><i class="fa fa-building"></i> Installations</a></li>
+        <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin')) { %>
+        <li><a href="/payments"><i class="fa fa-euro"></i> Paiements</a></li>
+        <li><a href="/reports"><i class="fa fa-bar-chart"></i> Rapports</a></li>
+        <% } %>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+          <form class="navbar-form" method="GET" action="/search">
+            <div class="input-group input-group-sm">
+              <input type="text" class="form-control" name="q" placeholder="Rechercher..." style="width:160px">
+              <span class="input-group-btn">
+                <button class="btn btn-default" type="submit"><i class="fa fa-search"></i></button>
+              </span>
+            </div>
+          </form>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+            <i class="fa fa-user-circle"></i>
+            <% if (currentUser) { %><%= currentUser.full_name %><% } %>
+            <span class="caret"></span>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="/profile"><i class="fa fa-id-card-o"></i> Mon profil</a></li>
+            <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin')) { %>
+            <li><a href="/settings"><i class="fa fa-cog"></i> Paramètres</a></li>
+            <li><a href="/admin/import"><i class="fa fa-upload"></i> Import données</a></li>
+            <li role="separator" class="divider"></li>
+            <li><a href="/reports/backup" onclick="return confirm('Lancer un backup ?')"><i class="fa fa-database"></i> Backup BDD</a></li>
+            <% } %>
+            <li role="separator" class="divider"></li>
+            <li><a href="/logout"><i class="fa fa-sign-out"></i> Déconnexion</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>

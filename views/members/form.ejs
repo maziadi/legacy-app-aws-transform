@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+
+  <ol class="breadcrumb">
+    <li><a href="/members">Membres</a></li>
+    <li class="active"><%= title %></li>
+  </ol>
+
+  <div class="panel panel-default">
+    <div class="panel-heading"><h3 class="panel-title"><%= title %></h3></div>
+    <div class="panel-body">
+      <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+
+      <form method="POST" action="<%= isNew ? '/members' : '/members/' + member.id + '/update' %>">
+        <div class="row">
+          <div class="col-md-6">
+            <h4>Informations personnelles</h4>
+            <div class="form-group">
+              <label>Prénom *</label>
+              <!-- no maxlength, no input sanitization -->
+              <input type="text" name="first_name" class="form-control" value="<%= member.first_name || '' %>" required>
+            </div>
+            <div class="form-group">
+              <label>Nom *</label>
+              <input type="text" name="last_name" class="form-control" value="<%= member.last_name || '' %>" required>
+            </div>
+            <div class="form-group">
+              <label>Email *</label>
+              <input type="email" name="email" class="form-control" value="<%= member.email || '' %>" required>
+            </div>
+            <div class="form-group">
+              <label>Email secondaire</label>
+              <input type="email" name="email2" class="form-control" value="<%= member.email2 || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Téléphone</label>
+              <input type="text" name="phone" class="form-control" value="<%= member.phone || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Téléphone 2</label>
+              <input type="text" name="phone2" class="form-control" value="<%= member.phone2 || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Date de naissance</label>
+              <input type="date" name="birth_date" class="form-control" value="<%= member.birth_date ? member.birth_date.substring(0,10) : '' %>">
+            </div>
+            <div class="form-group">
+              <label>Genre</label>
+              <select name="gender" class="form-control">
+                <option value="M" <%= member.gender === 'M' ? 'selected' : '' %>>Masculin</option>
+                <option value="F" <%= member.gender === 'F' ? 'selected' : '' %>>Féminin</option>
+                <option value="NR">Non renseigné</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <h4>Adresse</h4>
+            <div class="form-group">
+              <label>Adresse</label>
+              <input type="text" name="address" class="form-control" value="<%= member.address || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Ville</label>
+              <input type="text" name="city" class="form-control" value="<%= member.city || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Code postal</label>
+              <input type="text" name="zip" class="form-control" value="<%= member.zip || '' %>">
+            </div>
+            <hr>
+            <h4>Adhésion</h4>
+            <div class="form-group">
+              <label>Rôle</label>
+              <select name="role" class="form-control">
+                <option value="member" <%= member.role === 'member' ? 'selected' : '' %>>Membre</option>
+                <option value="coach"  <%= member.role === 'coach'  ? 'selected' : '' %>>Entraîneur</option>
+                <option value="admin"  <%= member.role === 'admin'  ? 'selected' : '' %>>Administrateur</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Statut</label>
+              <select name="status" class="form-control">
+                <option value="active"    <%= member.status === 'active'    ? 'selected' : '' %>>Actif</option>
+                <option value="inactive"  <%= member.status === 'inactive'  ? 'selected' : '' %>>Inactif</option>
+                <option value="suspended" <%= member.status === 'suspended' ? 'selected' : '' %>>Suspendu</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Type d'abonnement</label>
+              <select name="subscription_type" class="form-control">
+                <option value="annual_adult"  <%= member.subscription_type === 'annual_adult'  ? 'selected' : '' %>>Annuel Adulte (280€)</option>
+                <option value="annual_junior" <%= member.subscription_type === 'annual_junior' ? 'selected' : '' %>>Annuel Junior (150€)</option>
+                <option value="annual_family" <%= member.subscription_type === 'annual_family' ? 'selected' : '' %>>Annuel Famille (450€)</option>
+                <option value="monthly_adult" <%= member.subscription_type === 'monthly_adult' ? 'selected' : '' %>>Mensuel Adulte (30€)</option>
+                <option value="trial"         <%= member.subscription_type === 'trial'         ? 'selected' : '' %>>Essai gratuit</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Sport(s)</label>
+              <!-- comma-separated input - schema problem exposed to UI -->
+              <input type="text" name="sport" class="form-control" value="<%= member.sport || '' %>" placeholder="Football, Basket...">
+              <small class="text-muted">Séparer par des virgules</small>
+            </div>
+            <div class="form-group">
+              <label>Équipe</label>
+              <select name="team_id" class="form-control">
+                <option value="">-- Aucune équipe --</option>
+                <% (teams || []).forEach(function(t) { %>
+                <option value="<%= t.id %>" <%= member.team_id == t.id ? 'selected' : '' %>><%= t.name %> (<%= t.sport %>)</option>
+                <% }) %>
+              </select>
+            </div>
+            <% if (isNew) { %>
+            <div class="form-group">
+              <label>Mot de passe initial</label>
+              <input type="text" name="password" class="form-control" placeholder="Laisser vide = password123">
+              <!-- showing password in plain text field - security issue -->
+              <small class="text-muted">Par défaut: <code>password123</code></small>
+            </div>
+            <% } %>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            <div class="form-group">
+              <label>Notes</label>
+              <textarea name="notes" class="form-control" rows="3"><%= member.notes || '' %></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <button type="submit" class="btn btn-success"><i class="fa fa-save"></i> Enregistrer</button>
+          <a href="/members<%= isNew ? '' : '/' + member.id %>" class="btn btn-default">Annuler</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

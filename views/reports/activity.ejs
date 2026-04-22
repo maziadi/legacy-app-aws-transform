@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title>Rapport activité</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+  <ol class="breadcrumb"><li><a href="/reports">Rapports</a></li><li class="active">Activité</li></ol>
+  <h2>Rapport activité sportive</h2>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <table class="table table-striped table-hover">
+    <thead>
+      <tr><th>Équipe</th><th>Sport</th><th>Cat.</th><th>Membres</th><th>Matchs</th><th>V</th><th>N</th><th>D</th><th>%V</th></tr>
+    </thead>
+    <tbody>
+      <% (teams || []).forEach(function(t) { %>
+      <tr>
+        <td><a href="/teams/<%= t.id %>"><%= t.name %></a></td>
+        <td><%= t.sport %></td>
+        <td><%= t.category || '-' %></td>
+        <td><%= t.member_count %></td>
+        <td><%= t.matches_played %></td>
+        <td class="text-success"><strong><%= t.wins %></strong></td>
+        <td class="text-warning"><%= t.draws %></td>
+        <td class="text-danger"><%= t.losses %></td>
+        <td>
+          <% var total = t.matches_played || 1; %>
+          <div class="progress" style="margin:0; height:18px">
+            <div class="progress-bar progress-bar-success" style="width:<%= Math.round(t.wins/total*100) %>%"><%= Math.round(t.wins/total*100) %>%</div>
+          </div>
+        </td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  <a href="/reports" class="btn btn-default">&larr; Retour</a>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

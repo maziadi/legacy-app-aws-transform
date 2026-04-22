@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title>Anniversaires</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container main-content">
+  <ol class="breadcrumb"><li><a href="/reports">Rapports</a></li><li class="active">Anniversaires</li></ol>
+  <h2>Anniversaires du mois (<%= month %>)</h2>
+  <% var moisFr = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']; %>
+  <div class="row" style="margin-bottom:15px">
+    <% for (var m=1; m<=12; m++) { %>
+    <div class="col-xs-3 col-md-1" style="margin-bottom:5px">
+      <a href="/reports/birthdays?month=<%= m %>" class="btn btn-sm btn-<%= m == month ? 'primary' : 'default' %> btn-block"><%= moisFr[m].substring(0,3) %></a>
+    </div>
+    <% } %>
+  </div>
+  <table class="table table-hover">
+    <thead><tr><th>Nom</th><th>Date</th><th>Email</th><th>Équipe</th></tr></thead>
+    <tbody>
+      <% (members || []).forEach(function(m) { %>
+      <tr>
+        <td>🎂 <%= m.first_name %> <%= m.last_name %></td>
+        <td><%= m.birth_date ? m.birth_date.substring(8,10) + '/' + m.birth_date.substring(5,7) : '-' %></td>
+        <td><a href="mailto:<%= m.email %>"><%= m.email %></a></td>
+        <td><%= m.team_name || '-' %></td>
+      </tr>
+      <% }) %>
+      <% if (!members || members.length === 0) { %>
+      <tr><td colspan="4" class="text-center text-muted">Aucun anniversaire ce mois-ci</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+  <a href="/reports" class="btn btn-default">&larr; Retour</a>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title>Nouveau paiement</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container main-content">
+  <h2><i class="fa fa-euro"></i> Nouveau paiement</h2>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <div class="panel panel-default">
+    <div class="panel-body">
+      <form method="POST" action="/payments">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Membre *</label>
+              <select name="member_id" class="form-control" required>
+                <option value="">-- Choisir un membre --</option>
+                <% (members || []).forEach(function(m) { %>
+                <option value="<%= m.id %>" <%= (payment && payment.member_id == m.id) ? 'selected' : '' %>>
+                  <%= m.last_name.toUpperCase() %> <%= m.first_name %> (<%= m.member_number %>)
+                </option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Montant (€) *</label>
+              <!-- no min validation - can be 0 or negative -->
+              <input type="number" step="0.01" name="amount" class="form-control" value="<%= payment && payment.amount || '' %>" required>
+            </div>
+            <div class="form-group">
+              <label>Type</label>
+              <select name="payment_type" class="form-control">
+                <option value="subscription">Cotisation</option>
+                <option value="equipment">Équipement</option>
+                <option value="event_fee">Frais événement</option>
+                <option value="penalty">Pénalité</option>
+                <option value="other">Autre</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Méthode de paiement</label>
+              <select name="payment_method" class="form-control">
+                <option value="cash">Espèces</option>
+                <option value="check">Chèque</option>
+                <option value="card">Carte bancaire</option>
+                <option value="transfer">Virement</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Date de paiement</label>
+              <input type="date" name="payment_date" class="form-control" value="<%= new Date().toISOString().substring(0,10) %>">
+            </div>
+            <div class="form-group">
+              <label>Statut</label>
+              <select name="status" class="form-control">
+                <option value="paid">Payé</option>
+                <option value="pending">En attente</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <input type="text" name="description" class="form-control" value="<%= payment && payment.description || '' %>">
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-success"><i class="fa fa-save"></i> Enregistrer</button>
+        <a href="/payments" class="btn btn-default">Annuler</a>
+      </form>
+    </div>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container main-content">
+  <h2><%= title %></h2>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <form method="POST" action="<%= isNew ? '/facilities' : '/facilities/' + facility.id + '/update' %>">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group"><label>Nom *</label><input type="text" name="name" class="form-control" value="<%= facility.name || '' %>" required></div>
+        <div class="form-group">
+          <label>Type</label>
+          <select name="type" class="form-control">
+            <option value="field" <%= facility.type === 'field' ? 'selected' : '' %>>Terrain extérieur</option>
+            <option value="gym"   <%= facility.type === 'gym'   ? 'selected' : '' %>>Gymnase</option>
+            <option value="pool"  <%= facility.type === 'pool'  ? 'selected' : '' %>>Piscine</option>
+            <option value="court" <%= facility.type === 'court' ? 'selected' : '' %>>Court</option>
+            <option value="room"  <%= facility.type === 'room'  ? 'selected' : '' %>>Salle de réunion</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Capacité</label><input type="number" name="capacity" class="form-control" value="<%= facility.capacity || 0 %>"></div>
+        <div class="form-group"><label>Tarif horaire (€)</label><input type="number" step="0.50" name="hourly_rate" class="form-control" value="<%= facility.hourly_rate || 0 %>"></div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group"><label>Adresse</label><input type="text" name="address" class="form-control" value="<%= facility.address || '' %>"></div>
+        <div class="form-group"><label>Contact</label><input type="text" name="contact_person" class="form-control" value="<%= facility.contact_person || '' %>"></div>
+        <div class="form-group"><label>Téléphone contact</label><input type="text" name="contact_phone" class="form-control" value="<%= facility.contact_phone || '' %>"></div>
+        <div class="form-group"><label>Notes</label><textarea name="notes" class="form-control" rows="3"><%= facility.notes || '' %></textarea></div>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-success">Enregistrer</button>
+    <a href="/facilities" class="btn btn-default">Annuler</a>
+  </form>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

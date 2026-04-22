@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title>Renouvellements</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+  <ol class="breadcrumb"><li><a href="/reports">Rapports</a></li><li class="active">Renouvellements</li></ol>
+  <h2>Adhésions expirant dans <%= days %> jours</h2>
+  <form method="GET" action="/reports/renewals" class="form-inline" style="margin-bottom:15px">
+    <select name="days" class="form-control input-sm">
+      <option value="15" <%= days == 15 ? 'selected' : '' %>>15 jours</option>
+      <option value="30" <%= days == 30 ? 'selected' : '' %>>30 jours</option>
+      <option value="60" <%= days == 60 ? 'selected' : '' %>>60 jours</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Afficher</button>
+  </form>
+  <table class="table table-hover">
+    <thead><tr><th>Membre</th><th>Email</th><th>Type abonnement</th><th>Expiration</th><th>Actions</th></tr></thead>
+    <tbody>
+      <% (members || []).forEach(function(m) { %>
+      <tr class="<%= new Date(m.renewal_date) < new Date() ? 'danger' : 'warning' %>">
+        <td><a href="/members/<%= m.id %>"><%= m.first_name %> <%= m.last_name %></a></td>
+        <td><a href="mailto:<%= m.email %>"><%= m.email %></a></td>
+        <td><%= m.subscription_type || '-' %></td>
+        <td><strong><%= m.renewal_date ? m.renewal_date.substring(0,10) : '-' %></strong></td>
+        <td>
+          <a href="/members/<%= m.id %>" class="btn btn-xs btn-primary">Renouveler</a>
+        </td>
+      </tr>
+      <% }) %>
+      <% if (!members || members.length === 0) { %>
+      <tr><td colspan="5" class="text-center text-success" style="padding:20px">✓ Aucun renouvellement urgent</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+  <a href="/reports" class="btn btn-default">&larr; Retour</a>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

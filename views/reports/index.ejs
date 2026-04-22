@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title>Rapports</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+  <div class="page-header">
+    <h2><i class="fa fa-bar-chart"></i> Rapports &amp; Statistiques</h2>
+  </div>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <div class="alert alert-<%= flash.type === 'success' ? 'success' : 'danger' %> alert-dismissible">
+    <button class="close" data-dismiss="alert">&times;</button><%= flash.msg %>
+  </div>
+  <% } %>
+  <div class="row">
+    <div class="col-md-4">
+      <div class="panel panel-primary">
+        <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-users"></i> Adhésions</h3></div>
+        <div class="panel-body">
+          <p>Statistiques membres, répartition par sport, par catégorie</p>
+          <form method="GET" action="/reports/membership" style="display:inline">
+            <select name="season" class="form-control input-sm" style="margin-bottom:5px">
+              <% (seasons || []).forEach(function(s) { %>
+              <option value="<%= s %>"><%= s %></option>
+              <% }) %>
+            </select>
+            <button type="submit" class="btn btn-primary btn-block">Voir rapport</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="panel panel-success">
+        <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-euro"></i> Financier</h3></div>
+        <div class="panel-body">
+          <p>Recettes, paiements en attente, rapport annuel</p>
+          <form method="GET" action="/reports/financial" style="display:inline">
+            <select name="year" class="form-control input-sm" style="margin-bottom:5px">
+              <option value="<%= year %>"><%= year %></option>
+              <option value="<%= year-1 %>"><%= year-1 %></option>
+              <option value="<%= year-2 %>"><%= year-2 %></option>
+            </select>
+            <button type="submit" class="btn btn-success btn-block">Voir rapport</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="panel panel-info">
+        <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-trophy"></i> Activité sportive</h3></div>
+        <div class="panel-body">
+          <p>Résultats matchs, statistiques par équipe</p>
+          <a href="/reports/activity" class="btn btn-info btn-block">Voir rapport</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="panel panel-warning">
+        <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-birthday-cake"></i> Anniversaires</h3></div>
+        <div class="panel-body">
+          <a href="/reports/birthdays" class="btn btn-warning btn-block">Voir ce mois</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="panel panel-default">
+        <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-refresh"></i> Renouvellements</h3></div>
+        <div class="panel-body">
+          <a href="/reports/renewals" class="btn btn-default btn-block">Adhésions expirant bientôt</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="panel panel-danger">
+        <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-database"></i> Maintenance</h3></div>
+        <div class="panel-body">
+          <!-- backup triggered via POST - no confirmation in route, only JS confirm -->
+          <form method="POST" action="/reports/backup" onsubmit="return confirm('Lancer le backup maintenant ?')">
+            <button type="submit" class="btn btn-danger btn-block">Backup base de données</button>
+          </form>
+          <small class="text-muted">Crée un dump SQL dans /var/www/.../backups/</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container main-content">
+  <h2><%= title %></h2>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <form method="POST" action="<%= isNew ? '/teams' : '/teams/' + team.id + '/update' %>">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group"><label>Nom de l'équipe *</label><input type="text" name="name" class="form-control" value="<%= team.name || '' %>" required></div>
+        <div class="form-group">
+          <label>Sport *</label>
+          <select name="sport" class="form-control" required>
+            <option value="Football" <%= team.sport === 'Football' ? 'selected' : '' %>>Football</option>
+            <option value="Basket"   <%= team.sport === 'Basket'   ? 'selected' : '' %>>Basket</option>
+            <option value="Natation" <%= team.sport === 'Natation' ? 'selected' : '' %>>Natation</option>
+            <option value="Tennis"   <%= team.sport === 'Tennis'   ? 'selected' : '' %>>Tennis</option>
+            <option value="Autre"    <%= team.sport === 'Autre'    ? 'selected' : '' %>>Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Catégorie</label>
+          <select name="category" class="form-control">
+            <option value="U9"     <%= team.category === 'U9'     ? 'selected' : '' %>>U9</option>
+            <option value="U11"    <%= team.category === 'U11'    ? 'selected' : '' %>>U11</option>
+            <option value="U13"    <%= team.category === 'U13'    ? 'selected' : '' %>>U13</option>
+            <option value="U15"    <%= team.category === 'U15'    ? 'selected' : '' %>>U15</option>
+            <option value="U17"    <%= team.category === 'U17'    ? 'selected' : '' %>>U17</option>
+            <option value="Senior" <%= team.category === 'Senior' ? 'selected' : '' %>>Senior</option>
+            <option value="Veteran"<%= team.category === 'Veteran'? 'selected' : '' %>>Vétéran</option>
+            <option value="Loisir" <%= team.category === 'Loisir' ? 'selected' : '' %>>Loisir</option>
+          </select>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label>Entraîneur</label>
+          <select name="coach_id" class="form-control">
+            <option value="">-- Aucun --</option>
+            <% (coaches || []).forEach(function(c) { %>
+            <option value="<%= c.id %>" <%= team.coach_id == c.id ? 'selected' : '' %>><%= c.first_name %> <%= c.last_name %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="form-group"><label>Nb. joueurs max</label><input type="number" name="max_players" class="form-control" value="<%= team.max_players || 20 %>"></div>
+        <div class="form-group"><label>Saison</label><input type="text" name="season" class="form-control" value="<%= team.season || '2023-2024' %>"></div>
+        <div class="form-group"><label>Description</label><textarea name="description" class="form-control" rows="3"><%= team.description || '' %></textarea></div>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-success"><i class="fa fa-save"></i> Enregistrer</button>
+    <a href="/teams" class="btn btn-default">Annuler</a>
+  </form>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

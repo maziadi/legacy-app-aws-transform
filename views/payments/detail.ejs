@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title>Paiement #<%= payment.id %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container main-content">
+  <ol class="breadcrumb"><li><a href="/payments">Paiements</a></li><li class="active">#<%= payment.id %></li></ol>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <div class="alert alert-<%= flash.type === 'success' ? 'success' : 'danger' %> alert-dismissible">
+    <button class="close" data-dismiss="alert">&times;</button><%= flash.msg %>
+  </div>
+  <% } %>
+  <div class="row">
+    <div class="col-md-6">
+      <div class="panel panel-default">
+        <div class="panel-heading">Paiement #<%= payment.id %></div>
+        <div class="panel-body">
+          <p><strong>Membre :</strong> <a href="/members/<%= payment.member_id %>"><%= payment.member_name || payment.first_name + ' ' + payment.last_name %></a></p>
+          <p><strong>Montant :</strong> <span class="h4"><%= payment.amount %> €</span></p>
+          <p><strong>Type :</strong> <%= payment.payment_type %></p>
+          <p><strong>Méthode :</strong> <%= payment.payment_method %></p>
+          <p><strong>Date :</strong> <%= payment.payment_date %></p>
+          <p><strong>Statut :</strong> <span class="label label-<%= payment.status === 'paid' ? 'success' : 'warning' %>"><%= payment.status %></span></p>
+          <p><strong>Saison :</strong> <%= payment.season || '-' %></p>
+          <% if (payment.description) { %><p><strong>Description :</strong> <%= payment.description %></p><% } %>
+          <% if (payment.reference) { %><p><strong>Référence :</strong> <code><%= payment.reference %></code></p><% } %>
+          <% if (payment.migrated_from_excel) { %><p><small class="text-muted"><i class="fa fa-file-excel-o"></i> Migré depuis Excel</small></p><% } %>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="panel panel-default">
+        <div class="panel-heading">Modifier le statut</div>
+        <div class="panel-body">
+          <form method="POST" action="/payments/<%= payment.id %>/status">
+            <div class="form-group">
+              <select name="status" class="form-control">
+                <option value="paid"      <%= payment.status === 'paid'      ? 'selected' : '' %>>Payé</option>
+                <option value="pending"   <%= payment.status === 'pending'   ? 'selected' : '' %>>En attente</option>
+                <option value="cancelled" <%= payment.status === 'cancelled' ? 'selected' : '' %>>Annulé</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Mettre à jour</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

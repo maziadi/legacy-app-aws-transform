@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+  <div class="page-header">
+    <h2><i class="fa fa-calendar"></i> Événements
+      <a href="/events/new" class="btn btn-success btn-sm pull-right"><i class="fa fa-plus"></i> Nouveau</a>
+      <a href="/events/calendar" class="btn btn-default btn-sm pull-right" style="margin-right:5px"><i class="fa fa-calendar-o"></i> Calendrier</a>
+    </h2>
+  </div>
+
+  <form method="GET" action="/events" class="form-inline" style="margin-bottom:15px">
+    <select name="team_id" class="form-control input-sm">
+      <option value="">Toutes équipes</option>
+      <% (teams || []).forEach(function(t) { %>
+      <option value="<%= t.id %>" <%= filters.team_id == t.id ? 'selected' : '' %>><%= t.name %></option>
+      <% }) %>
+    </select>
+    <select name="event_type" class="form-control input-sm">
+      <option value="">Tous types</option>
+      <option value="match"      <%= filters.event_type === 'match'      ? 'selected' : '' %>>Match</option>
+      <option value="training"   <%= filters.event_type === 'training'   ? 'selected' : '' %>>Entraînement</option>
+      <option value="tournament" <%= filters.event_type === 'tournament' ? 'selected' : '' %>>Tournoi</option>
+      <option value="meeting"    <%= filters.event_type === 'meeting'    ? 'selected' : '' %>>Réunion</option>
+    </select>
+    <input type="date" name="from" class="form-control input-sm" value="<%= filters.from_date || '' %>">
+    <input type="date" name="to"   class="form-control input-sm" value="<%= filters.to_date || '' %>">
+    <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+  </form>
+
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+
+  <table class="table table-striped table-hover table-condensed">
+    <thead>
+      <tr>
+        <th>Titre</th><th>Type</th><th>Équipe</th><th>Date</th><th>Lieu</th><th>Statut</th><th>Résultat</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% (events || []).forEach(function(e) { %>
+      <tr>
+        <td><a href="/events/<%= e.id %>"><strong><%= e.title %></strong></a></td>
+        <td>
+          <span class="label label-<%= e.event_type === 'match' ? 'danger' : e.event_type === 'training' ? 'info' : e.event_type === 'tournament' ? 'warning' : 'default' %>">
+            <%= e.event_type %>
+          </span>
+        </td>
+        <td><small><%= e.team_name || e.team_name_join || '-' %></small></td>
+        <td><small><%= e.start_date ? e.start_date.substring(0,16).replace('T',' ') : '-' %></small></td>
+        <td><small><%= e.location || e.facility_name || '-' %></small></td>
+        <td>
+          <span class="label label-<%= e.status === 'completed' ? 'success' : e.status === 'cancelled' ? 'danger' : 'primary' %>">
+            <%= e.status %>
+          </span>
+        </td>
+        <td>
+          <% if (e.result) { %>
+          <span class="label label-<%= e.result === 'win' ? 'success' : e.result === 'loss' ? 'danger' : 'warning' %>">
+            <%= e.home_score %> - <%= e.away_score %>
+          </span>
+          <% } else { %>-<% } %>
+        </td>
+        <td>
+          <a href="/events/<%= e.id %>" class="btn btn-xs btn-default"><i class="fa fa-eye"></i></a>
+        </td>
+      </tr>
+      <% }) %>
+      <% if (!events || events.length === 0) { %>
+      <tr><td colspan="8" class="text-center text-muted" style="padding:20px">Aucun événement pour cette période</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

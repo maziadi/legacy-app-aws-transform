@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><title><%= title %></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<%- include('../partials/navbar') %>
+<div class="container-fluid main-content">
+  <ol class="breadcrumb"><li><a href="/events">Événements</a></li><li class="active"><%= event.title %></li></ol>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+  <div class="alert alert-<%= flash.type === 'success' ? 'success' : 'danger' %> alert-dismissible">
+    <button class="close" data-dismiss="alert">&times;</button><%= flash.msg %>
+  </div>
+  <% } %>
+  <div class="row">
+    <div class="col-md-8">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">
+            <span class="label label-<%= event.event_type === 'match' ? 'danger' : 'info' %>"><%= event.event_type %></span>
+            <%= event.title %>
+          </h3>
+        </div>
+        <div class="panel-body">
+          <div class="row">
+            <div class="col-md-6">
+              <p><strong>Équipe :</strong> <%= event.team_name || event.team_name_join || '-' %></p>
+              <p><strong>Sport :</strong> <%= event.sport || '-' %></p>
+              <p><strong>Date :</strong> <%= event.start_date ? event.start_date.substring(0,16).replace('T',' ') : '-' %></p>
+              <p><strong>Durée :</strong> <%= event.duration_minutes ? event.duration_minutes + ' min' : '-' %></p>
+              <p><strong>Lieu :</strong> <%= event.location || event.facility_name || '-' %></p>
+            </div>
+            <div class="col-md-6">
+              <% if (event.opponent_name) { %>
+              <p><strong>Adversaire :</strong> <%= event.opponent_name %> (<%= event.opponent_club || 'club inconnu' %>)</p>
+              <% } %>
+              <p><strong>Statut :</strong>
+                <span class="label label-<%= event.status === 'completed' ? 'success' : event.status === 'cancelled' ? 'danger' : 'primary' %>"><%= event.status %></span>
+              </p>
+              <% if (event.result) { %>
+              <p><strong>Résultat :</strong>
+                <span class="label label-<%= event.result === 'win' ? 'success' : event.result === 'loss' ? 'danger' : 'warning' %>" style="font-size:16px">
+                  <%= event.home_score %> - <%= event.away_score %>
+                </span>
+                (<%= event.result %>)
+              </p>
+              <% } %>
+            </div>
+          </div>
+          <% if (event.notes) { %><p><strong>Notes :</strong> <%= event.notes %></p><% } %>
+        </div>
+      </div>
+
+      <!-- Participants -->
+      <div class="panel panel-default">
+        <div class="panel-heading">Participants (<%= (event.participants || []).length %>)</div>
+        <div class="panel-body">
+          <% (event.participants || []).forEach(function(p) { %>
+          <a href="/members/<%= p.id %>" class="btn btn-xs btn-default" style="margin:2px">
+            <%= p.first_name %> <%= p.last_name %>
+          </a>
+          <% }) %>
+          <% if (!event.participants || event.participants.length === 0) { %>
+          <p class="text-muted">Aucun participant enregistré</p>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <% if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin' || currentUser.role === 'coach')) { %>
+      <!-- Record result -->
+      <% if (event.status !== 'completed' && event.event_type === 'match') { %>
+      <div class="panel panel-warning">
+        <div class="panel-heading">Saisir résultat</div>
+        <div class="panel-body">
+          <form method="POST" action="/events/<%= event.id %>/result">
+            <div class="row">
+              <div class="col-xs-5"><input type="number" name="home_score" class="form-control" placeholder="Nous" min="0"></div>
+              <div class="col-xs-2 text-center" style="padding-top:7px">-</div>
+              <div class="col-xs-5"><input type="number" name="away_score" class="form-control" placeholder="Eux" min="0"></div>
+            </div>
+            <textarea name="notes" class="form-control" style="margin-top:5px" rows="2" placeholder="Notes du match..."></textarea>
+            <button type="submit" class="btn btn-success btn-block" style="margin-top:5px">Enregistrer résultat</button>
+          </form>
+        </div>
+      </div>
+      <% } %>
+
+      <% if (event.status !== 'cancelled') { %>
+      <div class="panel panel-default">
+        <div class="panel-heading">Actions</div>
+        <div class="panel-body">
+          <a href="/events/<%= event.id %>/edit" class="btn btn-primary btn-block" style="margin-bottom:5px">Modifier</a>
+          <form method="POST" action="/events/<%= event.id %>/cancel" onsubmit="return confirm('Annuler cet événement ?')">
+            <button type="submit" class="btn btn-danger btn-block">Annuler l'événement</button>
+          </form>
+        </div>
+      </div>
+      <% } %>
+      <% } %>
+    </div>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>
