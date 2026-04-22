@@ -10,25 +10,30 @@ var ClubService  = require('../services/ClubService');
 var md5          = require('md5');
 
 // GET /auth/login - duplicate of / login in server.js
-router.get('/login', function (req, res) {
-  if (req.session.user) return res.redirect('/dashboard');
-  res.render('auth/login', { title: 'Connexion', error: req.query.msg || null });
+router.get('/login', async function (req, res, next) {
+  try {
+    if (req.session.user) return res.redirect('/dashboard');
+    res.render('auth/login', { title: 'Connexion', error: req.query.msg || null });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // POST /auth/login
-router.post('/login', function (req, res) {
-  var username = req.body.username;
-  var password = req.body.password;
+router.post('/login', async function (req, res, next) {
+  try {
+    var username = req.body.username;
+    var password = req.body.password;
 
-  // same logic as server.js /login but slightly different
-  if (username === config.adminFallback.username && password === config.adminFallback.password) {
-    req.session.user = { id: 0, username: 'superadmin', role: 'superadmin', full_name: 'Super Admin' };
-    return res.redirect('/dashboard');
-  }
+    // same logic as server.js /login but slightly different
+    if (username === config.adminFallback.username && password === config.adminFallback.password) {
+      req.session.user = { id: 0, username: 'superadmin', role: 'superadmin', full_name: 'Super Admin' };
+      return res.redirect('/dashboard');
+    }
 
-  var sql = "SELECT * FROM members WHERE email = '" + username + "' AND is_deleted = 0 AND status = 'active'";
-  db.query(sql, [], function (err, rows) {
-    if (err || !rows || rows.length === 0) {
+    var sql = "SELECT * FROM members WHERE email = '" + username + "' AND is_deleted = 0 AND status = 'active'";
+    var rows = await db.query(sql, []);
+    if (!rows || rows.length === 0) {
       return res.render('auth/login', { title: 'Connexion', error: 'Identifiants invalides' });
     }
     var user = rows[0];
@@ -44,36 +49,49 @@ router.post('/login', function (req, res) {
       role:      user.role,
       team_id:   user.team_id
     };
-    db.query('UPDATE members SET last_login = NOW() WHERE id = ?', [user.id], function () {});
+    db.query('UPDATE members SET last_login = NOW() WHERE id = ?', [user.id]).catch(function () {});
     res.redirect('/dashboard');
-  });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/logout', function (req, res) {
-  req.session.destroy();
-  res.redirect('/login');
+router.get('/logout', async function (req, res, next) {
+  try {
+    req.session.destroy();
+    res.redirect('/login');
+  } catch (err) {
+    next(err);
+  }
 });
 
 // password reset - sends plaintext temp password by email
-router.get('/forgot-password', function (req, res) {
-  res.render('auth/forgot', { title: 'Mot de passe oublié', error: null, success: null });
+router.get('/forgot-password', async function (req, res, next) {
+  try {
+    res.render('auth/forgot', { title: 'Mot de passe oublié', error: null, success: null });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/forgot-password', function (req, res) {
-  var email = req.body.email;
-  if (!email) {
-    return res.render('auth/forgot', { title: 'Mot de passe oublié', error: 'Email requis', success: null });
-  }
-  ClubService.resetPassword(email, function (err) {
-    if (err) {
-      return res.render('auth/forgot', { title: 'Mot de passe oublié', error: err.message, success: null });
+router.post('/forgot-password', async function (req, res, next) {
+  try {
+    var email = req.body.email;
+    if (!email) {
+      return res.render('auth/forgot', { title: 'Mot de passe oublié', error: 'Email requis', success: null });
     }
+    await ClubService.resetPassword(email);
     res.render('auth/forgot', {
       title:   'Mot de passe oublié',
       error:   null,
       success: 'Un mot de passe temporaire a été envoyé à votre adresse email.'
     });
-  });
+  } catch (err) {
+    if (err.message === 'Email non trouvé') {
+      return res.render('auth/forgot', { title: 'Mot de passe oublié', error: err.message, success: null });
+    }
+    next(err);
+  }
 });
 
 module.exports = router;
