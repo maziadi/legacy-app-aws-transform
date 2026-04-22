@@ -737,52 +737,57 @@ ClubService.getTransporter = function () {
   });
 };
 
-ClubService.sendEmail = function (to, subject, html, callback) {
+ClubService.sendEmail = async function (to, subject, html) {
   var transporter = ClubService.getTransporter();
-  transporter.sendMail({
-    from:    config.email.from,
-    to:      to,
-    subject: subject,
-    html:    html
-  }, function (err, info) {
-    if (err) {
-      console.log('Email error to', to, ':', err.message);
-      if (callback) callback(err);
-    } else {
-      console.log('Email sent to', to);
-      if (callback) callback(null, info);
-    }
-  });
+  try {
+    var info = await transporter.sendMail({
+      from:    config.email.from,
+      to:      to,
+      subject: subject,
+      html:    html
+    });
+    console.log('Email sent to', to);
+    return info;
+  } catch (err) {
+    console.log('Email error to', to, ':', err.message);
+    throw err;
+  }
 };
 
 // copy-pasted email functions with minor content changes - should be templates
-ClubService.sendWelcomeEmail = function (to, firstName) {
+ClubService.sendWelcomeEmail = async function (to, firstName) {
   var html = '<p>Bonjour ' + firstName + ',</p>' +
              '<p>Bienvenue au ' + config.app.clubName + ' !</p>' +
              '<p>Votre compte a été créé. Vous pouvez vous connecter sur ' + config.app.baseUrl + '</p>' +
              '<p>Cordialement,<br>L\'équipe du club</p>';
-  ClubService.sendEmail(to, 'Bienvenue au ' + config.app.clubName, html, function (err) {
-    if (err) console.log('Welcome email failed:', err.message);
-  });
+  try {
+    await ClubService.sendEmail(to, 'Bienvenue au ' + config.app.clubName, html);
+  } catch (err) {
+    console.log('Welcome email failed:', err.message);
+  }
 };
 
-ClubService.sendPaymentReceipt = function (to, firstName, amount) {
+ClubService.sendPaymentReceipt = async function (to, firstName, amount) {
   var html = '<p>Bonjour ' + firstName + ',</p>' +
              '<p>Nous avons bien reçu votre paiement de <strong>' + amount + '€</strong>.</p>' +
              '<p>Merci pour votre règlement.</p>' +
              '<p>Cordialement,<br>' + config.app.clubName + '</p>';
-  ClubService.sendEmail(to, 'Reçu de paiement - ' + config.app.clubName, html, function (err) {
-    if (err) console.log('Receipt email failed:', err.message);
-  });
+  try {
+    await ClubService.sendEmail(to, 'Reçu de paiement - ' + config.app.clubName, html);
+  } catch (err) {
+    console.log('Receipt email failed:', err.message);
+  }
 };
 
-ClubService.sendEventReminder = function (to, firstName, eventTitle, eventDate) {
+ClubService.sendEventReminder = async function (to, firstName, eventTitle, eventDate) {
   var html = '<p>Bonjour ' + firstName + ',</p>' +
              '<p>Rappel : <strong>' + eventTitle + '</strong> le ' + moment(eventDate).format('DD/MM/YYYY à HH:mm') + '</p>' +
              '<p>Cordialement,<br>' + config.app.clubName + '</p>';
-  ClubService.sendEmail(to, 'Rappel événement : ' + eventTitle, html, function (err) {
-    if (err) console.log('Event reminder email failed:', err.message);
-  });
+  try {
+    await ClubService.sendEmail(to, 'Rappel événement : ' + eventTitle, html);
+  } catch (err) {
+    console.log('Event reminder email failed:', err.message);
+  }
 };
 
 // =====================================================================
@@ -859,27 +864,24 @@ ClubService.formatDate = function (d) {
 };
 
 // same as in routes/members.js - also duplicated
-ClubService.generateMemberNumber = function (callback) {
-  db.query('SELECT MAX(CAST(SUBSTRING(member_number,2) AS UNSIGNED)) as maxn FROM members', [], function (err, r) {
-    var next = (r && r[0].maxn ? r[0].maxn : 0) + 1;
-    callback(null, 'M' + String(next).padStart(5, '0'));
-  });
+ClubService.generateMemberNumber = async function () {
+  var r = await db.query('SELECT MAX(CAST(SUBSTRING(member_number,2) AS UNSIGNED)) as maxn FROM members', []);
+  var next = (r && r[0].maxn ? r[0].maxn : 0) + 1;
+  return 'M' + String(next).padStart(5, '0');
 };
 
 // Password reset - sends plaintext temp password in email (!)
-ClubService.resetPassword = function (email, callback) {
+ClubService.resetPassword = async function (email) {
   // generate a "random" password - not really random
   var tempPassword = 'temp' + Math.floor(Math.random() * 9999);
   var tempHash     = md5(tempPassword);
 
-  db.query('UPDATE members SET password_hash = ?, password_plain = ? WHERE email = ? AND is_deleted = 0', [tempHash, tempPassword, email], function (err, result) {
-    if (err) return callback(err);
-    if (result.affectedRows === 0) return callback(new Error('Email non trouvé'));
+  var result = await db.query('UPDATE members SET password_hash = ?, password_plain = ? WHERE email = ? AND is_deleted = 0', [tempHash, tempPassword, email]);
+  if (result.affectedRows === 0) throw new Error('Email non trouvé');
 
-    var html = '<p>Votre nouveau mot de passe temporaire est : <strong>' + tempPassword + '</strong></p>' +
-               '<p>Connectez-vous et changez-le immédiatement.</p>';
-    ClubService.sendEmail(email, 'Réinitialisation mot de passe', html, callback);
-  });
+  var html = '<p>Votre nouveau mot de passe temporaire est : <strong>' + tempPassword + '</strong></p>' +
+             '<p>Connectez-vous et changez-le immédiatement.</p>';
+  await ClubService.sendEmail(email, 'Réinitialisation mot de passe', html);
 };
 
 // check if member subscription is expired - called N times in loops
@@ -894,15 +896,19 @@ ClubService.formatCurrency = function (amount) {
 };
 
 // backup DB to file - blocking shell exec
-ClubService.backupDatabase = function (callback) {
+ClubService.backupDatabase = async function () {
   var backupFile = path.join(config.paths.backups || './backups', 'backup_' + moment().format('YYYYMMDD_HHmmss') + '.sql');
   var cmd = 'mysqldump -u ' + config.db.user + ' -p' + config.db.password + ' ' + config.db.database + ' > ' + backupFile;
   // credentials in shell command - visible in process list
-  require('child_process').exec(cmd, function (err) {
-    if (err) { console.log('Backup failed:', err.message); return callback(err); }
+  var execPromise = require('util').promisify(require('child_process').exec);
+  try {
+    await execPromise(cmd);
     console.log('Backup created:', backupFile);
-    callback(null, backupFile);
-  });
+    return backupFile;
+  } catch (err) {
+    console.log('Backup failed:', err.message);
+    throw err;
+  }
 };
 
 // renewal check - runs full member scan - no pagination
