@@ -193,7 +193,7 @@ ClubService.deleteMember = async function (id, deletedBy) {
 // PAYMENT MANAGEMENT
 // =====================================================================
 
-ClubService.getPayments = function (filters, callback) {
+ClubService.getPayments = async function (filters) {
   var conditions = ['1=1'];
   var params     = [];
 
@@ -221,116 +221,105 @@ ClubService.getPayments = function (filters, callback) {
             'WHERE ' + conditions.join(' AND ') +
             ' ORDER BY p.payment_date DESC';
 
-  db.query(sql, params, callback);
+  return await db.query(sql, params);
 };
 
-ClubService.recordPayment = function (data, createdBy, callback) {
+ClubService.recordPayment = async function (data, createdBy) {
   // fetch member name to store redundantly - tight coupling
-  db.query('SELECT first_name, last_name, email FROM members WHERE id = ?', [data.member_id], function (err, rows) {
-    if (err || !rows || rows.length === 0) {
-      return callback(new Error('Membre introuvable'));
-    }
-    var member = rows[0];
-    var memberName = member.first_name + ' ' + member.last_name;
+  var rows = await db.query('SELECT first_name, last_name, email FROM members WHERE id = ?', [data.member_id]);
+  if (!rows || rows.length === 0) {
+    throw new Error('Membre introuvable');
+  }
+  var member = rows[0];
+  var memberName = member.first_name + ' ' + member.last_name;
 
-    var sql = 'INSERT INTO payments ' +
-      '(member_id, member_name, member_email, amount, payment_type, payment_method, ' +
-      'reference, description, payment_date, due_date, status, season, created_at, created_by) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)';
+  var sql = 'INSERT INTO payments ' +
+    '(member_id, member_name, member_email, amount, payment_type, payment_method, ' +
+    'reference, description, payment_date, due_date, status, season, created_at, created_by) ' +
+    'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)';
 
-    db.query(sql, [
-      data.member_id, memberName, member.email,
-      data.amount, data.payment_type || 'subscription',
-      data.payment_method || 'cash', data.reference || null,
-      data.description || null,
-      data.payment_date || moment().format('YYYY-MM-DD'),
-      data.due_date || null, data.status || 'paid',
-      data.season || config.app.season,
-      createdBy || 'system'
-    ], function (err2, result) {
-      if (err2) { console.log('recordPayment err:', err2); return callback(err2); }
+  var result = await db.query(sql, [
+    data.member_id, memberName, member.email,
+    data.amount, data.payment_type || 'subscription',
+    data.payment_method || 'cash', data.reference || null,
+    data.description || null,
+    data.payment_date || moment().format('YYYY-MM-DD'),
+    data.due_date || null, data.status || 'paid',
+    data.season || config.app.season,
+    createdBy || 'system'
+  ]);
 
-      // update member total_paid and last_payment_date - redundant fields
-      db.query(
-        'UPDATE members SET ' +
-        'total_paid = (SELECT COALESCE(SUM(amount),0) FROM payments WHERE member_id = ? AND status = "paid"), ' +
-        'last_payment_date = ? ' +
-        'WHERE id = ?',
-        [data.member_id, data.payment_date || moment().format('YYYY-MM-DD'), data.member_id],
-        function () {} // swallow errors in update
-      );
+  // update member total_paid and last_payment_date - redundant fields
+  db.query(
+    'UPDATE members SET ' +
+    'total_paid = (SELECT COALESCE(SUM(amount),0) FROM payments WHERE member_id = ? AND status = "paid"), ' +
+    'last_payment_date = ? ' +
+    'WHERE id = ?',
+    [data.member_id, data.payment_date || moment().format('YYYY-MM-DD'), data.member_id]
+  ).catch(function () {}); // swallow errors in update - fire and forget
 
-      // send receipt by email - fire and forget
-      if (data.status === 'paid') {
-        ClubService.sendPaymentReceipt(member.email, member.first_name, data.amount);
-      }
+  // send receipt by email - fire and forget
+  if (data.status === 'paid') {
+    ClubService.sendPaymentReceipt(member.email, member.first_name, data.amount).catch(function () {});
+  }
 
-      callback(null, result.insertId);
-    });
-  });
+  return result.insertId;
 };
 
-ClubService.getOverduePayments = function (callback) {
+ClubService.getOverduePayments = async function () {
   // query without proper index - runs full table scan in prod
   var sql = 'SELECT p.*, m.first_name, m.last_name, m.email, m.phone ' +
             'FROM payments p JOIN members m ON p.member_id = m.id ' +
             'WHERE p.status = "pending" AND p.due_date < CURDATE() ' +
             'AND m.is_deleted = 0 ' +
             'ORDER BY p.due_date ASC';
-  db.query(sql, [], callback);
+  return await db.query(sql, []);
 };
 
 // Copy-paste of getOverduePayments with different status filter
-ClubService.getPendingPayments = function (callback) {
+ClubService.getPendingPayments = async function () {
   var sql = 'SELECT p.*, m.first_name, m.last_name, m.email, m.phone ' +
             'FROM payments p JOIN members m ON p.member_id = m.id ' +
             'WHERE p.status = "pending" ' +
             'AND m.is_deleted = 0 ' +
             'ORDER BY p.due_date ASC';
-  db.query(sql, [], callback);
+  return await db.query(sql, []);
 };
 
-ClubService.sendPaymentReminders = function (callback) {
+ClubService.sendPaymentReminders = async function () {
   // called manually from admin panel, supposed to be a cron job
   // TODO: set up proper cron - ticket #3102, 2021
-  ClubService.getOverduePayments(function (err, payments) {
-    if (err) return callback(err);
-    var sent = 0;
-    var failed = 0;
+  var payments = await ClubService.getOverduePayments();
+  var sent = 0;
+  var failed = 0;
 
-    // synchronous-feeling loop with nested async - callback hell
-    var idx = 0;
-    function processNext() {
-      if (idx >= payments.length) {
-        console.log('Payment reminders: sent=' + sent + ' failed=' + failed);
-        return callback(null, { sent: sent, failed: failed });
-      }
-      var p = payments[idx];
-      idx++;
-      ClubService.sendEmail(
+  for (var p of payments) {
+    try {
+      await ClubService.sendEmail(
         p.email,
         'Rappel de paiement - ' + config.app.clubName,
         '<p>Bonjour ' + p.first_name + ',</p>' +
         '<p>Votre paiement de ' + p.amount + '€ est en retard (échéance: ' + p.due_date + ').</p>' +
-        '<p>Merci de régulariser votre situation.</p>',
-        function (err2) {
-          if (err2) { failed++; console.log('Email failed for', p.email); }
-          else { sent++; }
-          // mark reminder sent - no separate table for reminders, just a note
-          db.query("UPDATE payments SET description = CONCAT(IFNULL(description,''), ' [Rappel envoyé " + moment().format('DD/MM/YYYY') + "]') WHERE id = ?", [p.id], function () {});
-          processNext();
-        }
+        '<p>Merci de régulariser votre situation.</p>'
       );
+      sent++;
+    } catch (err2) {
+      failed++;
+      console.log('Email failed for', p.email);
     }
-    processNext();
-  });
+    // mark reminder sent - no separate table for reminders, just a note
+    db.query("UPDATE payments SET description = CONCAT(IFNULL(description,''), ' [Rappel envoyé " + moment().format('DD/MM/YYYY') + "]') WHERE id = ?", [p.id]).catch(function () {});
+  }
+
+  console.log('Payment reminders: sent=' + sent + ' failed=' + failed);
+  return { sent: sent, failed: failed };
 };
 
 // =====================================================================
 // TEAM MANAGEMENT
 // =====================================================================
 
-ClubService.getAllTeams = function (callback) {
+ClubService.getAllTeams = async function () {
   var sql = 'SELECT t.*, ' +
             'COUNT(m.id) as real_player_count, ' + // real count vs stored current_players
             'u.first_name as coach_first, u.last_name as coach_last ' +
@@ -340,110 +329,87 @@ ClubService.getAllTeams = function (callback) {
             'WHERE t.status = "active" ' +
             'GROUP BY t.id ' +
             'ORDER BY t.sport, t.category';
-  db.query(sql, [], callback);
+  return await db.query(sql, []);
 };
 
-ClubService.getTeamById = function (id, callback) {
-  db.query('SELECT * FROM teams WHERE id = ?', [id], function (err, rows) {
-    if (err || !rows.length) return callback(err, null);
-    var team = rows[0];
+ClubService.getTeamById = async function (id) {
+  var rows = await db.query('SELECT * FROM teams WHERE id = ?', [id]);
+  if (!rows || !rows.length) return null;
+  var team = rows[0];
 
-    // N+1: get all members of this team
-    db.query(
-      'SELECT * FROM members WHERE team_id = ? AND is_deleted = 0 ORDER BY last_name',
-      [id],
-      function (err2, members) {
-        team.members = members || [];
+  // N+1: get all members of this team
+  var members = await db.query(
+    'SELECT * FROM members WHERE team_id = ? AND is_deleted = 0 ORDER BY last_name',
+    [id]
+  );
+  team.members = members || [];
 
-        // N+1: get team events
-        db.query(
-          'SELECT * FROM events WHERE team_id = ? ORDER BY start_date DESC LIMIT 20',
-          [id],
-          function (err3, events) {
-            team.events = events || [];
+  // N+1: get team events
+  var events = await db.query(
+    'SELECT * FROM events WHERE team_id = ? ORDER BY start_date DESC LIMIT 20',
+    [id]
+  );
+  team.events = events || [];
 
-            // N+1: get coach details
-            if (team.coach_id) {
-              db.query('SELECT first_name, last_name, email, phone FROM members WHERE id = ?', [team.coach_id], function (err4, coachRows) {
-                team.coach = coachRows ? coachRows[0] : null;
-                callback(null, team);
-              });
-            } else {
-              team.coach = null;
-              callback(null, team);
-            }
-          }
-        );
-      }
-    );
-  });
+  // N+1: get coach details
+  if (team.coach_id) {
+    var coachRows = await db.query('SELECT first_name, last_name, email, phone FROM members WHERE id = ?', [team.coach_id]);
+    team.coach = coachRows ? coachRows[0] : null;
+  } else {
+    team.coach = null;
+  }
+
+  return team;
 };
 
-ClubService.createTeam = function (data, callback) {
+ClubService.createTeam = async function (data) {
   var coachName = '';
 
-  function doInsert() {
-    var sql = 'INSERT INTO teams (name, sport, category, coach_id, coach_name, coach_email, season, max_players, current_players, description, status) ' +
-              'VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)';
-    db.query(sql, [
-      data.name, data.sport, data.category,
-      data.coach_id || null, coachName, data.coach_email || null,
-      data.season || config.app.season,
-      data.max_players || 20,
-      data.description || null, 'active'
-    ], function (err, result) {
-      if (err) { console.log('createTeam err:', err); return callback(err); }
-      callback(null, result.insertId);
-    });
+  if (data.coach_id) {
+    var rows = await db.query('SELECT first_name, last_name, email FROM members WHERE id = ?', [data.coach_id]);
+    if (rows && rows[0]) {
+      coachName = rows[0].first_name + ' ' + rows[0].last_name;
+    }
   }
 
-  if (data.coach_id) {
-    db.query('SELECT first_name, last_name, email FROM members WHERE id = ?', [data.coach_id], function (err, rows) {
-      if (rows && rows[0]) {
-        coachName = rows[0].first_name + ' ' + rows[0].last_name;
-      }
-      doInsert();
-    });
-  } else {
-    doInsert();
-  }
+  var sql = 'INSERT INTO teams (name, sport, category, coach_id, coach_name, coach_email, season, max_players, current_players, description, status) ' +
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)';
+  var result = await db.query(sql, [
+    data.name, data.sport, data.category,
+    data.coach_id || null, coachName, data.coach_email || null,
+    data.season || config.app.season,
+    data.max_players || 20,
+    data.description || null, 'active'
+  ]);
+  return result.insertId;
 };
 
-ClubService.updateTeam = function (id, data, callback) {
+ClubService.updateTeam = async function (id, data) {
   // exact copy of createTeam logic duplicated here instead of shared
   var coachName = '';
 
-  function doUpdate() {
-    var sql = 'UPDATE teams SET name = ?, sport = ?, category = ?, coach_id = ?, ' +
-              'coach_name = ?, coach_email = ?, season = ?, max_players = ?, description = ?, status = ? ' +
-              'WHERE id = ?';
-    db.query(sql, [
-      data.name, data.sport, data.category,
-      data.coach_id || null, coachName, data.coach_email || null,
-      data.season || config.app.season,
-      data.max_players || 20,
-      data.description || null, data.status || 'active', id
-    ], function (err) {
-      if (err) return callback(err);
-      callback(null);
-    });
+  if (data.coach_id) {
+    var rows = await db.query('SELECT first_name, last_name FROM members WHERE id = ?', [data.coach_id]);
+    if (rows && rows[0]) coachName = rows[0].first_name + ' ' + rows[0].last_name;
   }
 
-  if (data.coach_id) {
-    db.query('SELECT first_name, last_name FROM members WHERE id = ?', [data.coach_id], function (err, rows) {
-      if (rows && rows[0]) coachName = rows[0].first_name + ' ' + rows[0].last_name;
-      doUpdate();
-    });
-  } else {
-    doUpdate();
-  }
+  var sql = 'UPDATE teams SET name = ?, sport = ?, category = ?, coach_id = ?, ' +
+            'coach_name = ?, coach_email = ?, season = ?, max_players = ?, description = ?, status = ? ' +
+            'WHERE id = ?';
+  await db.query(sql, [
+    data.name, data.sport, data.category,
+    data.coach_id || null, coachName, data.coach_email || null,
+    data.season || config.app.season,
+    data.max_players || 20,
+    data.description || null, data.status || 'active', id
+  ]);
 };
 
 // =====================================================================
 // EVENT / MATCH MANAGEMENT
 // =====================================================================
 
-ClubService.getEvents = function (filters, callback) {
+ClubService.getEvents = async function (filters) {
   var conditions = ['1=1'];
   var params     = [];
 
@@ -475,23 +441,20 @@ ClubService.getEvents = function (filters, callback) {
             'WHERE ' + conditions.join(' AND ') +
             ' ORDER BY e.start_date DESC';
 
-  db.query(sql, params, function (err, rows) {
-    if (err) return callback(err);
-    // N+1: count participants for each event
-    var events = rows || [];
-    if (events.length === 0) return callback(null, []);
-    var done = 0;
-    events.forEach(function (ev, i) {
-      db.query('SELECT COUNT(*) as cnt FROM event_participants WHERE event_id = ?', [ev.id], function (e2, r2) {
-        events[i].participant_count = r2 ? r2[0].cnt : 0;
-        done++;
-        if (done === events.length) callback(null, events);
-      });
-    });
-  });
+  var rows = await db.query(sql, params);
+  // N+1: count participants for each event
+  var events = rows || [];
+  if (events.length === 0) return [];
+
+  await Promise.all(events.map(async function (ev, i) {
+    var r2 = await db.query('SELECT COUNT(*) as cnt FROM event_participants WHERE event_id = ?', [ev.id]);
+    events[i].participant_count = r2 ? r2[0].cnt : 0;
+  }));
+
+  return events;
 };
 
-ClubService.createEvent = function (data, createdBy, callback) {
+ClubService.createEvent = async function (data, createdBy) {
   // calculate duration in minutes - also stored redundantly
   var durationMins = null;
   if (data.start_date && data.end_date) {
@@ -502,83 +465,63 @@ ClubService.createEvent = function (data, createdBy, callback) {
   var teamName     = '';
   var facilityName = '';
 
-  function doInsert() {
-    var sql = 'INSERT INTO events ' +
-      '(title, description, event_type, sport, team_id, team_name, opponent_name, opponent_club, ' +
-      'location, facility_id, facility_name, start_date, end_date, duration_minutes, status, notes, created_by) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-
-    db.query(sql, [
-      data.title, data.description || null, data.event_type || 'training',
-      data.sport, data.team_id || null, teamName,
-      data.opponent_name || null, data.opponent_club || null,
-      data.location || null, data.facility_id || null, facilityName,
-      data.start_date, data.end_date || null, durationMins,
-      'scheduled', data.notes || null, createdBy || 'system'
-    ], function (err, result) {
-      if (err) { console.log('createEvent err:', err); return callback(err); }
-
-      // auto-create facility booking if facility selected
-      if (data.facility_id) {
-        var bookingSql = 'INSERT INTO bookings (facility_id, facility_name, event_id, team_id, team_name, ' +
-                         'booked_by, start_time, end_time, purpose, status, created_at) ' +
-                         'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "confirmed", NOW())';
-        db.query(bookingSql, [
-          data.facility_id, facilityName, result.insertId,
-          data.team_id, teamName, createdBy,
-          data.start_date, data.end_date, data.title
-        ], function () {}); // swallow booking errors
-      }
-
-      callback(null, result.insertId);
-    });
+  if (data.team_id) {
+    var r1 = await db.query('SELECT name FROM teams WHERE id = ?', [data.team_id]);
+    teamName = r1 && r1[0] ? r1[0].name : '';
+  }
+  if (data.facility_id) {
+    var r2 = await db.query('SELECT name FROM facilities WHERE id = ?', [data.facility_id]);
+    facilityName = r2 && r2[0] ? r2[0].name : '';
   }
 
-  if (data.team_id && data.facility_id) {
-    db.query('SELECT name FROM teams WHERE id = ?', [data.team_id], function (err, r1) {
-      teamName = r1 && r1[0] ? r1[0].name : '';
-      db.query('SELECT name FROM facilities WHERE id = ?', [data.facility_id], function (err2, r2) {
-        facilityName = r2 && r2[0] ? r2[0].name : '';
-        doInsert();
-      });
-    });
-  } else if (data.team_id) {
-    db.query('SELECT name FROM teams WHERE id = ?', [data.team_id], function (err, r1) {
-      teamName = r1 && r1[0] ? r1[0].name : '';
-      doInsert();
-    });
-  } else if (data.facility_id) {
-    db.query('SELECT name FROM facilities WHERE id = ?', [data.facility_id], function (err, r2) {
-      facilityName = r2 && r2[0] ? r2[0].name : '';
-      doInsert();
-    });
-  } else {
-    doInsert();
+  var sql = 'INSERT INTO events ' +
+    '(title, description, event_type, sport, team_id, team_name, opponent_name, opponent_club, ' +
+    'location, facility_id, facility_name, start_date, end_date, duration_minutes, status, notes, created_by) ' +
+    'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+
+  var result = await db.query(sql, [
+    data.title, data.description || null, data.event_type || 'training',
+    data.sport, data.team_id || null, teamName,
+    data.opponent_name || null, data.opponent_club || null,
+    data.location || null, data.facility_id || null, facilityName,
+    data.start_date, data.end_date || null, durationMins,
+    'scheduled', data.notes || null, createdBy || 'system'
+  ]);
+
+  // auto-create facility booking if facility selected
+  if (data.facility_id) {
+    var bookingSql = 'INSERT INTO bookings (facility_id, facility_name, event_id, team_id, team_name, ' +
+                     'booked_by, start_time, end_time, purpose, status, created_at) ' +
+                     'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "confirmed", NOW())';
+    db.query(bookingSql, [
+      data.facility_id, facilityName, result.insertId,
+      data.team_id, teamName, createdBy,
+      data.start_date, data.end_date, data.title
+    ]).catch(function () {}); // swallow booking errors
   }
+
+  return result.insertId;
 };
 
-ClubService.recordMatchResult = function (eventId, homeScore, awayScore, notes, callback) {
+ClubService.recordMatchResult = async function (eventId, homeScore, awayScore, notes) {
   // result stored redundantly as string
   var result = homeScore > awayScore ? 'win' : homeScore < awayScore ? 'loss' : 'draw';
-  db.query(
+  await db.query(
     'UPDATE events SET home_score = ?, away_score = ?, result = ?, status = "completed", notes = CONCAT(IFNULL(notes,""), ?) WHERE id = ?',
-    [homeScore, awayScore, result, notes ? '\n' + notes : '', eventId],
-    function (err) {
-      if (err) return callback(err);
-      callback(null, result);
-    }
+    [homeScore, awayScore, result, notes ? '\n' + notes : '', eventId]
   );
+  return result;
 };
 
 // =====================================================================
 // FACILITY MANAGEMENT
 // =====================================================================
 
-ClubService.getFacilities = function (callback) {
-  db.query('SELECT * FROM facilities ORDER BY type, name', [], callback);
+ClubService.getFacilities = async function () {
+  return await db.query('SELECT * FROM facilities ORDER BY type, name', []);
 };
 
-ClubService.checkFacilityAvailability = function (facilityId, startTime, endTime, excludeEventId, callback) {
+ClubService.checkFacilityAvailability = async function (facilityId, startTime, endTime, excludeEventId) {
   var sql = 'SELECT COUNT(*) as conflicts FROM bookings ' +
             'WHERE facility_id = ? AND status != "cancelled" ' +
             'AND ((start_time < ? AND end_time > ?) OR (start_time < ? AND end_time > ?) OR (start_time >= ? AND end_time <= ?))';
@@ -587,13 +530,11 @@ ClubService.checkFacilityAvailability = function (facilityId, startTime, endTime
     sql += ' AND event_id != ?';
     params.push(excludeEventId);
   }
-  db.query(sql, params, function (err, rows) {
-    if (err) return callback(err, false);
-    callback(null, rows[0].conflicts === 0);
-  });
+  var rows = await db.query(sql, params);
+  return rows[0].conflicts === 0;
 };
 
-ClubService.getBookings = function (filters, callback) {
+ClubService.getBookings = async function (filters) {
   var conditions = ['1=1'];
   var params     = [];
   if (filters && filters.facility_id) {
@@ -608,14 +549,14 @@ ClubService.getBookings = function (filters, callback) {
             'FROM bookings b LEFT JOIN facilities f ON b.facility_id = f.id ' +
             'WHERE ' + conditions.join(' AND ') +
             ' ORDER BY b.start_time DESC';
-  db.query(sql, params, callback);
+  return await db.query(sql, params);
 };
 
 // =====================================================================
 // REPORTING
 // =====================================================================
 
-ClubService.getMembershipReport = function (season, callback) {
+ClubService.getMembershipReport = async function (season) {
   var sql = 'SELECT ' +
             'COUNT(*) as total_members, ' +
             'SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active, ' +
@@ -625,31 +566,26 @@ ClubService.getMembershipReport = function (season, callback) {
             'SUM(CASE WHEN gender = "F" THEN 1 ELSE 0 END) as female, ' +
             'AVG(age) as avg_age ' +
             'FROM members WHERE is_deleted = 0';
-  db.query(sql, [], function (err, r) {
-    if (err) return callback(err);
-    var summary = r[0];
+  var r = await db.query(sql, []);
+  var summary = r[0];
 
-    // separate query instead of GROUP BY in main query - inefficient
-    db.query(
-      'SELECT sport, COUNT(*) as cnt FROM members WHERE is_deleted = 0 AND status = "active" GROUP BY sport ORDER BY cnt DESC',
-      [],
-      function (err2, bySport) {
-        summary.by_sport = bySport || [];
+  // separate query instead of GROUP BY in main query - inefficient
+  var bySport = await db.query(
+    'SELECT sport, COUNT(*) as cnt FROM members WHERE is_deleted = 0 AND status = "active" GROUP BY sport ORDER BY cnt DESC',
+    []
+  );
+  summary.by_sport = bySport || [];
 
-        db.query(
-          'SELECT subscription_type, COUNT(*) as cnt, SUM(subscription_amount) as total FROM members WHERE is_deleted = 0 AND status = "active" GROUP BY subscription_type',
-          [],
-          function (err3, bySub) {
-            summary.by_subscription = bySub || [];
-            callback(null, summary);
-          }
-        );
-      }
-    );
-  });
+  var bySub = await db.query(
+    'SELECT subscription_type, COUNT(*) as cnt, SUM(subscription_amount) as total FROM members WHERE is_deleted = 0 AND status = "active" GROUP BY subscription_type',
+    []
+  );
+  summary.by_subscription = bySub || [];
+
+  return summary;
 };
 
-ClubService.getFinancialReport = function (year, callback) {
+ClubService.getFinancialReport = async function (year) {
   // year param used unsafely in string concat for "performance" - Thomas 2019
   var sql = "SELECT " +
             "SUM(CASE WHEN status='paid' THEN amount ELSE 0 END) as total_collected, " +
@@ -660,19 +596,16 @@ ClubService.getFinancialReport = function (year, callback) {
             "SUM(CASE WHEN payment_type='equipment' AND status='paid' THEN amount ELSE 0 END) as equipment_revenue " +
             "FROM payments WHERE YEAR(payment_date) = " + parseInt(year);  // parseInt is the only protection
 
-  db.query(sql, [], function (err, r) {
-    if (err) return callback(err);
-    var report = r[0];
+  var r = await db.query(sql, []);
+  var report = r[0];
 
-    db.query(
-      "SELECT MONTH(payment_date) as month, SUM(amount) as total FROM payments WHERE YEAR(payment_date) = " + parseInt(year) + " AND status = 'paid' GROUP BY MONTH(payment_date) ORDER BY month",
-      [],
-      function (err2, monthly) {
-        report.monthly = monthly || [];
-        callback(null, report);
-      }
-    );
-  });
+  var monthly = await db.query(
+    "SELECT MONTH(payment_date) as month, SUM(amount) as total FROM payments WHERE YEAR(payment_date) = " + parseInt(year) + " AND status = 'paid' GROUP BY MONTH(payment_date) ORDER BY month",
+    []
+  );
+  report.monthly = monthly || [];
+
+  return report;
 };
 
 // =====================================================================
@@ -751,64 +684,58 @@ ClubService.sendEventReminder = async function (to, firstName, eventTitle, event
 // STATISTICS / ANALYTICS
 // =====================================================================
 
-ClubService.getDashboardStats = function (callback) {
+ClubService.getDashboardStats = async function () {
   // again: all separate queries instead of one smart query or a view
-  var stats = {};
-  db.query('SELECT COUNT(*) as n FROM members WHERE is_deleted=0 AND status="active"', [], function (e, r) {
-    stats.activeMembers = r ? r[0].n : 0;
-    db.query('SELECT COUNT(*) as n FROM teams WHERE status="active"', [], function (e, r) {
-      stats.activeTeams = r ? r[0].n : 0;
-      db.query('SELECT COUNT(*) as n FROM events WHERE start_date >= CURDATE() AND status != "cancelled"', [], function (e, r) {
-        stats.upcomingEvents = r ? r[0].n : 0;
-        db.query('SELECT COALESCE(SUM(amount),0) as s FROM payments WHERE status="paid" AND YEAR(payment_date)=YEAR(CURDATE())', [], function (e, r) {
-          stats.ytdRevenue = r ? r[0].s : 0;
-          db.query('SELECT COUNT(*) as n FROM payments WHERE status="pending" AND due_date < CURDATE()', [], function (e, r) {
-            stats.overdueCount = r ? r[0].n : 0;
-            db.query('SELECT COALESCE(SUM(amount),0) as s FROM payments WHERE status="pending" AND due_date < CURDATE()', [], function (e, r) {
-              stats.overdueAmount = r ? r[0].s : 0;
-              callback(null, stats);
-            });
-          });
-        });
-      });
-    });
-  });
+  // Using Promise.all since all queries are independent
+  var [r1, r2, r3, r4, r5, r6] = await Promise.all([
+    db.query('SELECT COUNT(*) as n FROM members WHERE is_deleted=0 AND status="active"', []),
+    db.query('SELECT COUNT(*) as n FROM teams WHERE status="active"', []),
+    db.query('SELECT COUNT(*) as n FROM events WHERE start_date >= CURDATE() AND status != "cancelled"', []),
+    db.query('SELECT COALESCE(SUM(amount),0) as s FROM payments WHERE status="paid" AND YEAR(payment_date)=YEAR(CURDATE())', []),
+    db.query('SELECT COUNT(*) as n FROM payments WHERE status="pending" AND due_date < CURDATE()', []),
+    db.query('SELECT COALESCE(SUM(amount),0) as s FROM payments WHERE status="pending" AND due_date < CURDATE()', [])
+  ]);
+
+  return {
+    activeMembers:  r1 ? r1[0].n : 0,
+    activeTeams:    r2 ? r2[0].n : 0,
+    upcomingEvents: r3 ? r3[0].n : 0,
+    ytdRevenue:     r4 ? r4[0].s : 0,
+    overdueCount:   r5 ? r5[0].n : 0,
+    overdueAmount:  r6 ? r6[0].s : 0
+  };
 };
 
 // =====================================================================
 // EXPORT UTILITIES (CSV/basic)
 // =====================================================================
 
-ClubService.exportMembersCSV = function (filters, callback) {
-  ClubService.getAllMembers(filters, function (err, members) {
-    if (err) return callback(err);
-    // manual CSV builder - no library, no escaping of commas in values
-    var lines = ['ID,Nom,Prénom,Email,Téléphone,Sport,Équipe,Statut,Inscription,Dernière cotisation'];
-    members.forEach(function (m) {
-      lines.push([
-        m.id, m.last_name, m.first_name, m.email, m.phone || '',
-        m.sport || '', m.team_name || '', m.status,
-        m.join_date || '', m.last_payment_date || ''
-      ].join(','));
-    });
-    callback(null, lines.join('\n'));
+ClubService.exportMembersCSV = async function (filters) {
+  var members = await ClubService.getAllMembers(filters);
+  // manual CSV builder - no library, no escaping of commas in values
+  var lines = ['ID,Nom,Prénom,Email,Téléphone,Sport,Équipe,Statut,Inscription,Dernière cotisation'];
+  members.forEach(function (m) {
+    lines.push([
+      m.id, m.last_name, m.first_name, m.email, m.phone || '',
+      m.sport || '', m.team_name || '', m.status,
+      m.join_date || '', m.last_payment_date || ''
+    ].join(','));
   });
+  return lines.join('\n');
 };
 
-ClubService.exportPaymentsCSV = function (filters, callback) {
+ClubService.exportPaymentsCSV = async function (filters) {
   // copy-paste of exportMembersCSV structure - should be generic
-  ClubService.getPayments(filters, function (err, payments) {
-    if (err) return callback(err);
-    var lines = ['ID,Membre,Email,Montant,Type,Méthode,Date,Statut,Saison'];
-    payments.forEach(function (p) {
-      lines.push([
-        p.id, p.member_name || '', p.member_email || '',
-        p.amount, p.payment_type, p.payment_method,
-        p.payment_date, p.status, p.season || ''
-      ].join(','));
-    });
-    callback(null, lines.join('\n'));
+  var payments = await ClubService.getPayments(filters);
+  var lines = ['ID,Membre,Email,Montant,Type,Méthode,Date,Statut,Saison'];
+  payments.forEach(function (p) {
+    lines.push([
+      p.id, p.member_name || '', p.member_email || '',
+      p.amount, p.payment_type, p.payment_method,
+      p.payment_date, p.status, p.season || ''
+    ].join(','));
   });
+  return lines.join('\n');
 };
 
 // =====================================================================
@@ -869,24 +796,24 @@ ClubService.backupDatabase = async function () {
 };
 
 // renewal check - runs full member scan - no pagination
-ClubService.checkRenewals = function (callback) {
+ClubService.checkRenewals = async function () {
   var thirtyDaysFromNow = moment().add(30, 'days').format('YYYY-MM-DD');
-  db.query(
+  var members = await db.query(
     'SELECT * FROM members WHERE renewal_date <= ? AND renewal_date >= CURDATE() AND status = "active" AND is_deleted = 0',
-    [thirtyDaysFromNow],
-    function (err, members) {
-      if (err) return callback(err);
-      var notified = 0;
-      members.forEach(function (m) {
-        var html = '<p>Bonjour ' + m.first_name + ',</p>' +
-                   '<p>Votre adhésion expire le ' + m.renewal_date + '. Pensez à renouveler votre cotisation.</p>';
-        ClubService.sendEmail(m.email, 'Renouvellement adhésion - ' + config.app.clubName, html, function () {
-          notified++;
-        });
-      });
-      callback(null, { checked: members.length, notified: notified });
-    }
+    [thirtyDaysFromNow]
   );
+  var notified = 0;
+  await Promise.all(members.map(async function (m) {
+    var html = '<p>Bonjour ' + m.first_name + ',</p>' +
+               '<p>Votre adhésion expire le ' + m.renewal_date + '. Pensez à renouveler votre cotisation.</p>';
+    try {
+      await ClubService.sendEmail(m.email, 'Renouvellement adhésion - ' + config.app.clubName, html);
+      notified++;
+    } catch (err) {
+      // silently continue on email failure
+    }
+  }));
+  return { checked: members.length, notified: notified };
 };
 
 module.exports = ClubService;
