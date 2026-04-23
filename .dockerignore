@@ -1,0 +1,15 @@
+node_modules
+.env
+uploads/
+ATXDocumentation/
+.git
+*.log
+.dockerignore
+Dockerfile
+docker-compose*.yml
+.DS_Store
+npm-debug.log*
+reports/
+.claude/
+build.log
+coverage/
