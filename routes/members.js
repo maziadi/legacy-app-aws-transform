@@ -8,7 +8,6 @@ var router      = express.Router();
 var db          = require('../database');
 var config      = require('../config');
 var ClubService = require('../services/ClubService');
-var md5         = require('md5');
 var moment      = require('moment');
 
 // inline auth middleware - duplicated from server.js
