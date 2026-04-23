@@ -43,6 +43,74 @@ Manages members, teams, events, payments and facilities.
    
    App will be available at http://localhost:3000
 
+## Docker Setup
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed
+- A `.env` file configured with required environment variables. Key variables include:
+  - `DB_HOST` - Database host (set automatically to `mysql` by Docker Compose)
+  - `DB_USER` - Database user
+  - `DB_PASSWORD` - Database password
+  - `DB_NAME` - Database name
+  - `APP_PORT` - Application port (default: 3000)
+  - `SESSION_SECRET` - Session secret key
+  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` - Email/SMTP settings
+
+### Quick Start
+
+1. Clone the repository:
+   ```bash
+   git clone http://internal-git.clubsportif.fr/club-manager.git
+   cd club-manager
+   ```
+
+2. Copy `.env.example` to `.env` and fill in your values:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Build and start all services:
+   ```bash
+   docker compose up --build
+   ```
+
+4. Access the application at [http://localhost:3000](http://localhost:3000)
+
+### Development Workflow
+
+The `docker-compose.override.yml` file is automatically applied when running `docker compose up`, enabling a development-friendly environment:
+
+- **Live reload**: Your local source code is bind-mounted into the container, so changes are reflected immediately.
+- **File watching**: The Node.js `--watch` flag (built into Node.js 22) automatically restarts the server when files change.
+- **Isolated dependencies**: Container `node_modules` are preserved via an anonymous volume, preventing conflicts with host dependencies.
+
+After making changes to `package.json` or adding new dependencies, rebuild the containers:
+```bash
+docker compose up --build
+```
+
+### Production Deployment Notes
+
+- Build a standalone Docker image:
+  ```bash
+  docker build -t club-manager .
+  ```
+- For **AWS ECS/Fargate** deployment, the MySQL service in `docker-compose.yml` would be replaced by **Amazon RDS**. The `docker-compose.yml` is primarily intended for local testing.
+- The `uploads/` volume should be replaced with **Amazon S3** or **Amazon EFS** in a production environment.
+- The Docker image runs as a non-root user (`appuser`) for security.
+
+### Common Docker Commands
+
+| Command | Description |
+|---------|-------------|
+| `docker compose up --build` | Build images and start all services |
+| `docker compose up -d` | Start services in detached (background) mode |
+| `docker compose down` | Stop and remove all services |
+| `docker compose down -v` | Stop services and remove all volumes (data reset) |
+| `docker compose logs -f app` | Follow application logs |
+
+
 ## Login
 
 Default admin account:
