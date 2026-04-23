@@ -24,8 +24,8 @@ router.post('/login', async function (req, res, next) {
     var username = req.body.username;
     var password = req.body.password;
 
-    var sql = "SELECT * FROM members WHERE email = '" + username + "' AND is_deleted = 0 AND status = 'active'";
-    var rows = await db.query(sql, []);
+    var sql = "SELECT * FROM members WHERE email = ? AND is_deleted = 0 AND status = 'active'";
+    var rows = await db.query(sql, [username]);
     if (!rows || rows.length === 0) {
       return res.render('auth/login', { title: 'Connexion', error: 'Identifiants invalides' });
     }
