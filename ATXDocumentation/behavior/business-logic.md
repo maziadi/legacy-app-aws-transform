@@ -143,7 +143,7 @@
 ## Authentication
 
 ### Login Flow (`server.js POST /login`, `routes/auth.js POST /login`)
-- **Admin Backdoor**: Checks `config.adminFallback` credentials first — grants superadmin access if matched
+- **Admin Backdoor**: [REMOVED] The admin backdoor has been removed as a security remediation
 - **SQL Injection**: Email used directly in SQL string concatenation
 - **MD5 Check**: `md5(password)` compared against `password_hash`
 - **Plaintext Fallback**: If MD5 fails, checks `password_plain === password` as fallback

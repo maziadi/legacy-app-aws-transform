@@ -61,10 +61,7 @@ ELSE
 
 ### Login Authentication (`server.js POST /login`)
 ```
-1. IF username === config.adminFallback.username AND password === config.adminFallback.password
-     → Create superadmin session (backdoor)
-     → Log "BACKDOOR LOGIN USED"
-     → Redirect to /dashboard
+1. [REMOVED] Admin backdoor check has been removed as a security remediation
 
 2. Query: SELECT * FROM members WHERE email = '<username>' AND is_deleted = 0
    IF query error OR no rows

@@ -3,8 +3,8 @@
 ## Priority 1: Critical Security Fixes (High Severity)
 
 ### 1.1 Remove Admin Backdoor
-- **Action**: Delete `config.adminFallback` from `config.js`
-- **Action**: Remove backdoor checks from `server.js` POST `/login` (line ~99) and `routes/auth.js` POST `/login` (line ~18)
+- **Action**: ~~Delete admin backdoor from `config.js`~~ DONE — admin backdoor has been removed
+- **Action**: ~~Remove backdoor checks from `server.js` POST `/login` and `routes/auth.js` POST `/login`~~ DONE
 - **Complexity**: Low
 - **Risk if deferred**: Unauthorized superadmin access
 

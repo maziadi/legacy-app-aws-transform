@@ -22,7 +22,7 @@ Club Manager v3 has accumulated significant technical debt since its inception i
 | MD5 password hashing | ClubService.js, server.js, routes/auth.js | Passwords crackable in seconds |
 | Plaintext password storage | members.password_plain, ClubService.createMember/resetPassword | Full credential exposure on DB breach |
 | SQL injection | server.js (login, search), routes/auth.js (login), ClubService.js (financial report) | Complete database compromise |
-| Admin backdoor | config.js (adminFallback), server.js, routes/auth.js | Unauthorized superadmin access |
+| Admin backdoor | config.js, server.js, routes/auth.js — [REMOVED] | Unauthorized superadmin access |
 | Hardcoded credentials | config.js (DB, SMTP, session secret), backup.sh | Credential leakage via VCS |
 | No HTTPS | config.js (baseUrl=http://), no TLS config | Traffic interception |
 | TLS disabled for SMTP | ClubService.js (rejectUnauthorized: false) | SMTP MITM |

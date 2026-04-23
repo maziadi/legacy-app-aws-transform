@@ -9,9 +9,8 @@ Browser              server.js              database.js           MySQL
   │  (username,password) │                       │                    │
   │────────────────────>│                       │                    │
   │                     │                       │                    │
-  │                     │ Check backdoor creds  │                    │
-  │                     │ (config.adminFallback) │                    │
-  │                     │ [if match → session]  │                    │
+  │                     │ [REMOVED] Backdoor    │                    │
+  │                     │ check was removed     │                    │
   │                     │                       │                    │
   │                     │ SQL (string concat!)  │                    │
   │                     │ SELECT * FROM members │                    │

@@ -9,7 +9,7 @@
 
 ### Configuration: `config.js`
 - **Requires**: (none — leaf module)
-- **Exports**: Configuration object with db, session, email, app, subscriptions, adminFallback, paths, features
+- **Exports**: Configuration object with db, session, email, app, subscriptions, paths, features (admin backdoor removed)
 - **Role**: Centralized configuration (all hardcoded)
 
 ### Data Access: `database.js`

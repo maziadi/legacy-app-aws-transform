@@ -7,8 +7,7 @@
 ```
 User → GET /login → Render login form
 User → POST /login (username, password)
-  ├── Check admin backdoor (config.adminFallback)
-  │   └── If match → Create superadmin session → Redirect /dashboard
+  ├── [REMOVED] Admin backdoor check was removed as a security remediation
   ├── Query: SELECT * FROM members WHERE email = '<username>' (SQL injection!)
   │   └── If no results → Render login with error
   ├── Check MD5: md5(password) === user.password_hash

@@ -95,8 +95,8 @@ club-manager/
 - Many redundant columns across all tables (stored denormalized for "performance")
 - No test suite
 - No linting/formatting standards
-- `config.js` contains prod credentials - should be environment variables
-- The admin backdoor in `config.adminFallback` was supposed to be removed after migration 2016
+- ~~`config.js` contains prod credentials - should be environment variables~~ (RESOLVED: config now uses environment variables via dotenv)
+- ~~The admin backdoor was supposed to be removed after migration 2016~~ (RESOLVED: admin backdoor has been removed)
 - `current_players` in teams table is manually maintained and often out of sync
 - `age` in members table is calculated on save and becomes stale
 - The `audit_log` table exists but nothing writes to it

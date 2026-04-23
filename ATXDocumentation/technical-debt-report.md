@@ -56,9 +56,9 @@ Club Manager v3 ("ASC Villejuif Football" sports club management system) carries
 - **Recommendation**: Use parameterized queries (`?` placeholders) for all SQL
 
 ### 7. Admin Backdoor with Hardcoded Credentials
-- **Location**: `config.js` (`adminFallback`), checked in `server.js` and `routes/auth.js`
+- **Location**: `config.js` — [REMOVED] The admin backdoor has been removed as a security remediation
 - **Impact**: Anyone with source code access or credential knowledge has superadmin access
-- **Recommendation**: Remove backdoor immediately
+- **Recommendation**: ~~Remove backdoor immediately~~ DONE
 
 ### 8. Hardcoded Credentials in Source Code
 - **Locations**: `config.js` (DB root password, SMTP password, session secret), `scripts/backup.sh` (DB password)

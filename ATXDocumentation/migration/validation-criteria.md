@@ -9,7 +9,7 @@
 | SEC-01 | All SQL queries use parameterized queries (`?` placeholders) | `grep` for string concatenation in SQL; no `+` or template literals in query strings |
 | SEC-02 | No plaintext passwords stored in database | `password_plain` column removed from schema; no references in code |
 | SEC-03 | All password hashing uses bcrypt with salt rounds ≥ 10 | `grep` for `md5` imports returns 0; bcrypt.hash/compare used |
-| SEC-04 | Admin backdoor completely removed | No `adminFallback` in config; no backdoor check in login handlers |
+| SEC-04 | Admin backdoor completely removed | No admin backdoor in config; no backdoor check in login handlers — VERIFIED REMOVED |
 | SEC-05 | All credentials stored in environment variables | No hardcoded passwords, secrets, or API keys in source files |
 | SEC-06 | CSRF protection enabled on all POST routes | CSRF middleware active; all forms include CSRF token |
 | SEC-07 | HTTPS enabled for all traffic | HTTP redirects to HTTPS; no `http://` URLs in config |
