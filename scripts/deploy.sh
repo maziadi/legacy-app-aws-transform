@@ -5,9 +5,12 @@
 # WARNING: run from local machine, not server
 # FIXME: add proper CI/CD instead of this - ticket #1234 (opened 2018)
 
-SERVER="ubuntu@185.12.34.56"   # prod server IP hardcoded
-APP_DIR="/var/www/club_manager"
-NODE_VERSION="22"               # upgraded to Node.js 22 LTS
+# Load environment variables from .env if present
+[ -f .env ] && export $(grep -v '^#' .env | xargs)
+
+SERVER="${DEPLOY_SERVER:?Error: DEPLOY_SERVER not set}"
+APP_DIR="${DEPLOY_APP_DIR:-/var/www/club_manager}"
+NODE_VERSION="${NODE_VERSION:-22}"
 
 echo "=== Club Manager Deploy ==="
 echo "Target: $SERVER"
@@ -53,6 +56,6 @@ ssh $SERVER "pm2 status club-manager"
 
 echo ""
 echo "=== Deploy complete ==="
-echo "App should be accessible at http://185.12.34.56:3000"
+echo "App should be accessible at http://$DEPLOY_SERVER:${APP_PORT:-3000}"
 echo "NOTE: no HTTPS, no load balancer, no health checks"
 echo "If it's broken, SSH in and check: pm2 logs club-manager"

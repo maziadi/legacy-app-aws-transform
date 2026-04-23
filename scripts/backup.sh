@@ -4,11 +4,14 @@
 # Run manually: bash scripts/backup.sh
 # TODO: automate this - ticket #892, opened 2017, assigned to Pierre (left 2022)
 
-DB_HOST="localhost"
-DB_USER="root"
-DB_PASS="Club@Admin2015!"      # hardcoded same as config.js
-DB_NAME="club_manager"
-BACKUP_DIR="/var/www/club_manager/backups"
+# Load environment variables from .env if present
+[ -f .env ] && export $(grep -v '^#' .env | xargs)
+
+DB_HOST="${DB_HOST:-localhost}"
+DB_USER="${DB_USER:?Error: DB_USER not set}"
+DB_PASS="${DB_PASSWORD:?Error: DB_PASSWORD not set}"
+DB_NAME="${DB_NAME:-club_manager}"
+BACKUP_DIR="${PATH_BACKUPS:-/var/www/club_manager/backups}"
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/backup_$DATE.sql"
 KEEP_DAYS=7                    # keep 7 days of backups (if someone runs this manually)
@@ -19,7 +22,6 @@ echo "Starting backup: $DATE"
 mkdir -p $BACKUP_DIR
 
 # dump database
-# password in command line - visible in 'ps aux'
 mysqldump -h$DB_HOST -u$DB_USER -p$DB_PASS $DB_NAME > $BACKUP_FILE
 
 if [ $? -eq 0 ]; then
