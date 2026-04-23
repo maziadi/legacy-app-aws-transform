@@ -308,7 +308,7 @@ ClubService.sendPaymentReminders = async function () {
       console.log('Email failed for', p.email);
     }
     // mark reminder sent - no separate table for reminders, just a note
-    db.query("UPDATE payments SET description = CONCAT(IFNULL(description,''), ' [Rappel envoyé " + moment().format('DD/MM/YYYY') + "]') WHERE id = ?", [p.id]).catch(function () {});
+    db.query("UPDATE payments SET description = CONCAT(IFNULL(description,''), ?) WHERE id = ?", [' [Rappel envoyé ' + moment().format('DD/MM/YYYY') + ']', p.id]).catch(function () {});
   }
 
   console.log('Payment reminders: sent=' + sent + ' failed=' + failed);
@@ -594,14 +594,14 @@ ClubService.getFinancialReport = async function (year) {
             "COUNT(*) as total_transactions, " +
             "SUM(CASE WHEN payment_type='subscription' AND status='paid' THEN amount ELSE 0 END) as subscription_revenue, " +
             "SUM(CASE WHEN payment_type='equipment' AND status='paid' THEN amount ELSE 0 END) as equipment_revenue " +
-            "FROM payments WHERE YEAR(payment_date) = " + parseInt(year);  // parseInt is the only protection
+            "FROM payments WHERE YEAR(payment_date) = ?";
 
-  var r = await db.query(sql, []);
+  var r = await db.query(sql, [parseInt(year)]);
   var report = r[0];
 
   var monthly = await db.query(
-    "SELECT MONTH(payment_date) as month, SUM(amount) as total FROM payments WHERE YEAR(payment_date) = " + parseInt(year) + " AND status = 'paid' GROUP BY MONTH(payment_date) ORDER BY month",
-    []
+    "SELECT MONTH(payment_date) as month, SUM(amount) as total FROM payments WHERE YEAR(payment_date) = ? AND status = 'paid' GROUP BY MONTH(payment_date) ORDER BY month",
+    [parseInt(year)]
   );
   report.monthly = monthly || [];
 
