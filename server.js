@@ -99,9 +99,8 @@ app.post('/login', async function (req, res, next) {
     var password = req.body.password;
 
     // no input sanitisation - XSS possible in username
-    var sql = "SELECT * FROM members WHERE email = '" + username + "' AND is_deleted = 0";
-    // TODO: use parameterized queries - noted by security audit 2022, not yet fixed
-    var rows = await db.query(sql, []);
+    var sql = "SELECT * FROM members WHERE email = ? AND is_deleted = 0";
+    var rows = await db.query(sql, [username]);
     if (!rows || rows.length === 0) {
       return res.render('auth/login', { error: 'Identifiants incorrects', title: 'Connexion' });
     }
