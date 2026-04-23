@@ -1,0 +1,14 @@
+# ============================================================
+# docker-compose.override.yml - Local development overrides
+# Automatically applied when running "docker compose up"
+# Provides live code reload via bind mounts and --watch flag
+# ============================================================
+
+services:
+  app:
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    command: ["node", "--watch", "server.js"]
+    environment:
+      NODE_ENV: development
