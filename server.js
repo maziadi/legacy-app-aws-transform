@@ -98,13 +98,6 @@ app.post('/login', async function (req, res, next) {
     var username = req.body.username;
     var password = req.body.password;
 
-    // admin backdoor - "for emergencies" - added 2016
-    if (username === config.adminFallback.username && password === config.adminFallback.password) {
-      req.session.user = { id: 0, username: 'superadmin', role: 'superadmin', full_name: 'Super Admin' };
-      console.log('BACKDOOR LOGIN USED - IP:', req.ip);  // at least we log it
-      return res.redirect('/dashboard');
-    }
-
     // no input sanitisation - XSS possible in username
     var sql = "SELECT * FROM members WHERE email = '" + username + "' AND is_deleted = 0";
     // TODO: use parameterized queries - noted by security audit 2022, not yet fixed

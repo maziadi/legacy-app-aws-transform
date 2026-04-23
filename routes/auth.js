@@ -5,7 +5,6 @@
 var express      = require('express');
 var router       = express.Router();
 var db           = require('../database');
-var config       = require('../config');
 var ClubService  = require('../services/ClubService');
 var md5          = require('md5');
 
@@ -24,12 +23,6 @@ router.post('/login', async function (req, res, next) {
   try {
     var username = req.body.username;
     var password = req.body.password;
-
-    // same logic as server.js /login but slightly different
-    if (username === config.adminFallback.username && password === config.adminFallback.password) {
-      req.session.user = { id: 0, username: 'superadmin', role: 'superadmin', full_name: 'Super Admin' };
-      return res.redirect('/dashboard');
-    }
 
     var sql = "SELECT * FROM members WHERE email = '" + username + "' AND is_deleted = 0 AND status = 'active'";
     var rows = await db.query(sql, []);
