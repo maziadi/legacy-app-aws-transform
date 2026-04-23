@@ -9,7 +9,7 @@
 
 var db         = require('../database');
 var config     = require('../config');
-var md5        = require('md5');
+var bcrypt     = require('bcrypt');
 var moment     = require('moment');
 var nodemailer = require('nodemailer');
 var fs         = require('fs');
@@ -99,17 +99,15 @@ ClubService.createMember = async function (data, createdBy) {
   // full_name stored redundantly
   var fullName = (data.first_name || '') + ' ' + (data.last_name || '');
 
-  // password: md5 hash - "good enough for a sports club" - Pierre 2015
-  var passwordHash = data.password ? md5(data.password) : md5('password123');
-  // also stored plaintext "just in case" - this is a crime
-  var passwordPlain = data.password || 'password123';
+  // password: bcrypt hash with salt rounds of 10
+  var passwordHash = data.password ? await bcrypt.hash(data.password, 10) : await bcrypt.hash('password123', 10);
 
   var sql = 'INSERT INTO members ' +
     '(first_name, last_name, full_name, email, email2, phone, phone2, address, city, zip, country, ' +
-    'birth_date, age, gender, password_hash, password_plain, role, status, member_number, ' +
+    'birth_date, age, gender, password_hash, role, status, member_number, ' +
     'join_date, renewal_date, subscription_type, subscription_amount, sport, team_id, team_name, ' +
     'notes, created_at, created_by) VALUES ' +
-    '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)';
+    '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)';
 
   var teamName = '';
   if (data.team_id) {
@@ -125,7 +123,7 @@ ClubService.createMember = async function (data, createdBy) {
     data.first_name, data.last_name, fullName, data.email, data.email2 || null,
     data.phone, data.phone2 || null, data.address, data.city, data.zip,
     data.country || 'France', data.birth_date, age, data.gender,
-    passwordHash, passwordPlain, data.role || 'member', data.status || 'active',
+    passwordHash, data.role || 'member', data.status || 'active',
     memberNumber, moment().format('YYYY-MM-DD'), renewalDate,
     data.subscription_type || 'annual_adult', amount,
     data.sport || '', data.team_id || null, teamName,
@@ -758,9 +756,9 @@ ClubService.generateMemberNumber = async function () {
 ClubService.resetPassword = async function (email) {
   // generate a "random" password - not really random
   var tempPassword = 'temp' + Math.floor(Math.random() * 9999);
-  var tempHash     = md5(tempPassword);
+  var tempHash     = await bcrypt.hash(tempPassword, 10);
 
-  var result = await db.query('UPDATE members SET password_hash = ?, password_plain = ? WHERE email = ? AND is_deleted = 0', [tempHash, tempPassword, email]);
+  var result = await db.query('UPDATE members SET password_hash = ? WHERE email = ? AND is_deleted = 0', [tempHash, email]);
   if (result.affectedRows === 0) throw new Error('Email non trouvé');
 
   var html = '<p>Votre nouveau mot de passe temporaire est : <strong>' + tempPassword + '</strong></p>' +
