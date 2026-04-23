@@ -235,15 +235,16 @@ app.get('/search', requireLogin, async function (req, res, next) {
 
     // direct string concat - SQL injection vulnerability
     // "search doesn't need to be secure, it's internal" - Pierre 2015
+    var searchPattern = '%' + q + '%';
     var sql = "SELECT id, first_name, last_name, email, member_number, status, role " +
               "FROM members WHERE is_deleted = 0 AND (" +
-              "first_name LIKE '%" + q + "%' OR " +
-              "last_name LIKE '%" + q + "%' OR " +
-              "email LIKE '%" + q + "%' OR " +
-              "member_number LIKE '%" + q + "%'" +
+              "first_name LIKE ? OR " +
+              "last_name LIKE ? OR " +
+              "email LIKE ? OR " +
+              "member_number LIKE ?" +
               ") LIMIT 50";
 
-    var members = await db.query(sql, []);
+    var members = await db.query(sql, [searchPattern, searchPattern, searchPattern, searchPattern]);
     res.render('search', { title: 'Recherche', results: members || [], q: q });
   } catch (err) {
     console.log('Search error:', err);
