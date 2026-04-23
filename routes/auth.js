@@ -6,7 +6,7 @@ var express      = require('express');
 var router       = express.Router();
 var db           = require('../database');
 var ClubService  = require('../services/ClubService');
-var md5          = require('md5');
+var bcrypt       = require('bcrypt');
 
 // GET /auth/login - duplicate of / login in server.js
 router.get('/login', async function (req, res, next) {
@@ -30,10 +30,8 @@ router.post('/login', async function (req, res, next) {
       return res.render('auth/login', { title: 'Connexion', error: 'Identifiants invalides' });
     }
     var user = rows[0];
-    if (user.password_hash !== md5(password)) {
-      if (!user.password_plain || user.password_plain !== password) {
-        return res.render('auth/login', { title: 'Connexion', error: 'Identifiants invalides' });
-      }
+    if (!(await bcrypt.compare(password, user.password_hash))) {
+      return res.render('auth/login', { title: 'Connexion', error: 'Identifiants invalides' });
     }
     req.session.user = {
       id:        user.id,

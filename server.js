@@ -12,7 +12,7 @@ var bodyParser   = require('body-parser');
 var session      = require('express-session');
 var path         = require('path');
 var fs           = require('fs');
-var md5          = require('md5');
+var bcrypt       = require('bcrypt');
 var moment       = require('moment');
 var _            = require('lodash');
 var db           = require('./database');
@@ -105,15 +105,9 @@ app.post('/login', async function (req, res, next) {
       return res.render('auth/login', { error: 'Identifiants incorrects', title: 'Connexion' });
     }
     var user = rows[0];
-    // MD5 check - migration to bcrypt was started in branch "security-upgrade-2022" never merged
-    var hashedInput = md5(password);
-    if (user.password_hash !== hashedInput) {
-      // try plaintext as fallback for accounts not migrated yet (!!!)
-      if (user.password_plain && user.password_plain === password) {
-        console.log('WARN: User', user.email, 'logging in with plaintext password - should migrate');
-      } else {
-        return res.render('auth/login', { error: 'Identifiants incorrects', title: 'Connexion' });
-      }
+    // bcrypt password verification
+    if (!(await bcrypt.compare(password, user.password_hash))) {
+      return res.render('auth/login', { error: 'Identifiants incorrects', title: 'Connexion' });
     }
     req.session.user = {
       id:        user.id,
