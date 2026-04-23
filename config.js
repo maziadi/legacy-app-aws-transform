@@ -2,94 +2,84 @@
 // config.js - Application Configuration
 // Created: 2015-03-10 by Pierre Martin
 // Last modified: 2023-11-02 by Kevin (new SMTP server)
-// TODO: move all this to .env file - ticket #2341 from 2019, still open
+// Configuration values loaded from environment variables via dotenv
 // ============================================================
+
+require('dotenv').config();
 
 var config = {};
 
 // --- DATABASE ---
-// prod DB, same creds for dev because "it's simpler" - thomas 2017
 config.db = {
-  host:     'localhost',
-  user:     'root',
-  password: '',
-  database: 'club_manager',
-  port:     3306,
-  connectionLimit: 10,
-  multipleStatements: true // needed for some batch scripts, risky but whatever
+  host:               process.env.DB_HOST || 'localhost',
+  user:               process.env.DB_USER || 'root',
+  password:           process.env.DB_PASSWORD,
+  database:           process.env.DB_NAME || 'club_manager',
+  port:               parseInt(process.env.DB_PORT) || 3306,
+  connectionLimit:    parseInt(process.env.DB_CONNECTION_LIMIT) || 10,
+  multipleStatements: process.env.DB_MULTIPLE_STATEMENTS === 'true'
 };
 
 // --- SESSION ---
-// secret never rotated since go-live
 config.session = {
-  secret:            'ClubManager_Session_Secret_2015_NeverChange',
+  secret:            process.env.SESSION_SECRET,
   resave:            true,
   saveUninitialized: true,
   cookie: {
-    maxAge: 86400000 * 7  // 7 days, was 1 day but members complained
+    maxAge: parseInt(process.env.SESSION_COOKIE_MAX_AGE) || 604800000
   }
 };
 
 // --- EMAIL (SMTP) ---
-// updated 2023 when old server died - Kevin
 config.email = {
-  host:     'smtp.orange.fr',
-  port:     587,
-  secure:   false,
-  user:     'noreply.clubsportif@orange.fr',
-  password: 'OrangeSmtp#2023!',
-  from:     'Club Sportif <noreply.clubsportif@orange.fr>'
+  host:     process.env.SMTP_HOST || 'smtp.orange.fr',
+  port:     parseInt(process.env.SMTP_PORT) || 587,
+  secure:   process.env.SMTP_SECURE === 'true',
+  user:     process.env.SMTP_USER || 'noreply.clubsportif@orange.fr',
+  password: process.env.SMTP_PASSWORD,
+  from:     process.env.SMTP_FROM || 'Club Sportif <noreply.clubsportif@orange.fr>'
 };
 
 // --- APP ---
 config.app = {
-  port:        3000,
-  baseUrl:     'http://localhost:3000',       // FIXME: change for prod deploy
-  uploadDir:   './uploads',
-  reportDir:   './reports',
-  maxFileSize: 5242880,                       // 5MB
-  appName:     'Club Manager v3',
-  clubName:    'ASC Villejuif Football',       // hardcoded club name - should be in DB
-  clubAddress: '12 Rue des Sports, 94800 Villejuif',
-  clubPhone:   '01 45 67 89 00',
-  clubEmail:   'contact@asc-villejuif.fr',
-  season:      '2023-2024'                    // manually updated each year... sometimes forgotten
+  port:        parseInt(process.env.APP_PORT) || 3000,
+  baseUrl:     process.env.APP_BASE_URL || 'http://localhost:3000',
+  uploadDir:   process.env.APP_UPLOAD_DIR || './uploads',
+  reportDir:   process.env.APP_REPORT_DIR || './reports',
+  maxFileSize: parseInt(process.env.APP_MAX_FILE_SIZE) || 5242880,
+  appName:     process.env.APP_NAME || 'Club Manager v3',
+  clubName:    process.env.CLUB_NAME || 'ASC Villejuif Football',
+  clubAddress: process.env.CLUB_ADDRESS || '12 Rue des Sports, 94800 Villejuif',
+  clubPhone:   process.env.CLUB_PHONE || '01 45 67 89 00',
+  clubEmail:   process.env.CLUB_EMAIL || 'contact@asc-villejuif.fr',
+  season:      process.env.APP_SEASON || '2023-2024'
 };
 
 // --- PAYROLL/SUBSCRIPTION constants ---
-// changed 3 times but nobody updated the code consistently
 config.subscriptions = {
-  annual_adult:   280,
-  annual_junior:  150,
-  annual_family:  450,
-  monthly_adult:  30,
-  trial:          0,
-  licenceFee:     45   // mandatory federation fee, added 2019
+  annual_adult:   parseInt(process.env.SUB_ANNUAL_ADULT) || 280,
+  annual_junior:  parseInt(process.env.SUB_ANNUAL_JUNIOR) || 150,
+  annual_family:  parseInt(process.env.SUB_ANNUAL_FAMILY) || 450,
+  monthly_adult:  parseInt(process.env.SUB_MONTHLY_ADULT) || 30,
+  trial:          parseInt(process.env.SUB_TRIAL) || 0,
+  licenceFee:     parseInt(process.env.SUB_LICENCE_FEE) || 45
 };
 
-// --- ADMIN FALLBACK ---
-// "temporary" backdoor added for migration 2016 - never removed
-// FIXME: remove before next audit (audit was 2022, still here 2024)
-config.adminFallback = {
-  username: 'superadmin',
-  password: 'Sup3rAdm1n2016'
-};
-
-// --- PATHS (absolute from old Debian server) ---
+// --- PATHS ---
 config.paths = {
-  reports: '/var/www/club_manager/reports',
-  backups: '/var/www/club_manager/backups',
-  uploads: '/var/www/club_manager/uploads',
-  temp:    '/tmp/club_uploads'
+  reports: process.env.PATH_REPORTS || '/var/www/club_manager/reports',
+  backups: process.env.PATH_BACKUPS || '/var/www/club_manager/backups',
+  uploads: process.env.PATH_UPLOADS || '/var/www/club_manager/uploads',
+  temp:    process.env.PATH_TEMP || '/tmp/club_uploads'
 };
 
-// --- FEATURE FLAGS (hardcoded, no feature flag system) ---
+// --- FEATURE FLAGS ---
 config.features = {
-  onlinePayment:   false,   // PayPal integration was started, never finished - see routes/payment_v2.js.bak
-  smsNotif:        false,   // SMS provider contract expired 2021, never renewed
-  advancedReports: true,
-  memberPortal:    true,
-  mobileApp:       false    // mobile app project cancelled 2020
+  onlinePayment:   process.env.FEATURE_ONLINE_PAYMENT === 'true',
+  smsNotif:        process.env.FEATURE_SMS_NOTIF === 'true',
+  advancedReports: process.env.FEATURE_ADVANCED_REPORTS === 'true',
+  memberPortal:    process.env.FEATURE_MEMBER_PORTAL === 'true',
+  mobileApp:       process.env.FEATURE_MOBILE_APP === 'true'
 };
 
 module.exports = config;
