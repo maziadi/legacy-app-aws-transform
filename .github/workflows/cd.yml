@@ -1,0 +1,287 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-push-ecr:
+    name: Build & Push to ECR
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      image-tag: ${{ steps.short-sha.outputs.sha }}
+      ecr-registry: ${{ steps.login-ecr.outputs.registry }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Compute short SHA (7 chars)
+        id: short-sha
+        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ steps.short-sha.outputs.sha }}
+        run: |
+          docker build \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:latest" \
+            .
+
+      - name: Push Docker image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ steps.short-sha.outputs.sha }}
+        run: |
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          echo "Pushed image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Scan ECR image for vulnerabilities
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ steps.short-sha.outputs.sha }}
+        run: |
+          echo "Waiting for ECR scan to complete..."
+          sleep 30
+          SCAN_STATUS=$(aws ecr describe-image-scan-findings \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-id imageTag="$IMAGE_TAG" \
+            --query 'imageScanStatus.status' \
+            --output text 2>/dev/null || echo "SCAN_NOT_AVAILABLE")
+
+          if [ "$SCAN_STATUS" = "COMPLETE" ]; then
+            CRITICAL_COUNT=$(aws ecr describe-image-scan-findings \
+              --repository-name "$ECR_REPOSITORY" \
+              --image-id imageTag="$IMAGE_TAG" \
+              --query 'imageScanFindings.findingSeverityCounts.CRITICAL' \
+              --output text 2>/dev/null || echo "0")
+            if [ "$CRITICAL_COUNT" != "None" ] && [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "::warning::ECR scan found $CRITICAL_COUNT critical vulnerability(ies) in image $ECR_REPOSITORY:$IMAGE_TAG. Review and remediate."
+            else
+              echo "ECR scan: no critical vulnerabilities found."
+            fi
+          else
+            echo "::warning::ECR scan status: $SCAN_STATUS. Scan may not be available or still in progress."
+          fi
+
+  deploy-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: [build-push-ecr]
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image URI
+        id: image-uri
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ needs.build-push-ecr.outputs.image-tag }}
+        run: |
+          IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          echo "uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+          echo "Deploying image: $IMAGE_URI"
+          echo "Commit SHA: $GITHUB_SHA"
+
+      - name: Get current ECS task definition
+        id: current-task-def
+        env:
+          ECS_TASK_DEFINITION: ${{ vars.ECS_TASK_DEFINITION }}
+        run: |
+          TASK_DEF_ARN=$(aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_DEFINITION" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "previous-arn=$TASK_DEF_ARN" >> "$GITHUB_OUTPUT"
+          echo "Previous task definition ARN: $TASK_DEF_ARN"
+
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_DEFINITION" \
+            --query 'taskDefinition' \
+            --output json > task-definition.json
+
+      - name: Update ECS task definition with new image
+        id: render-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: nodejs-app
+          image: ${{ steps.image-uri.outputs.uri }}
+
+      - name: Deploy to ECS (dev)
+        id: deploy-ecs
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-task-def.outputs.task-definition }}
+          service: ${{ vars.ECS_SERVICE }}
+          cluster: ${{ vars.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 10
+
+      - name: Rollback on deployment failure
+        if: failure() && steps.deploy-ecs.outcome == 'failure'
+        env:
+          ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          PREVIOUS_TASK_DEF_ARN: ${{ steps.current-task-def.outputs.previous-arn }}
+        run: |
+          echo "Deployment failed. Rolling back to previous task definition: $PREVIOUS_TASK_DEF_ARN"
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "$PREVIOUS_TASK_DEF_ARN"
+          echo "Rollback initiated. Waiting for service stability..."
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE"
+          echo "Rollback complete."
+
+      - name: Setup Node.js for post-deployment tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run non-regression tests against dev ALB
+        env:
+          ALB_URL: ${{ vars.ALB_URL }}
+          NODE_ENV: test
+        run: npm run test:nr
+
+  deploy-prod:
+    name: Deploy to Prod
+    runs-on: ubuntu-latest
+    needs: [deploy-dev]
+    environment: prod
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image URI
+        id: image-uri
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ needs.build-push-ecr.outputs.image-tag }}
+        run: |
+          IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          echo "uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+          echo "Deploying image: $IMAGE_URI"
+          echo "Commit SHA: $GITHUB_SHA"
+
+      - name: Get current ECS task definition
+        id: current-task-def
+        env:
+          ECS_TASK_DEFINITION: ${{ vars.ECS_TASK_DEFINITION }}
+        run: |
+          TASK_DEF_ARN=$(aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_DEFINITION" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "previous-arn=$TASK_DEF_ARN" >> "$GITHUB_OUTPUT"
+          echo "Previous task definition ARN: $TASK_DEF_ARN"
+
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_DEFINITION" \
+            --query 'taskDefinition' \
+            --output json > task-definition.json
+
+      - name: Update ECS task definition with new image
+        id: render-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: nodejs-app
+          image: ${{ steps.image-uri.outputs.uri }}
+
+      - name: Deploy to ECS (prod)
+        id: deploy-ecs
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-task-def.outputs.task-definition }}
+          service: ${{ vars.ECS_SERVICE }}
+          cluster: ${{ vars.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 10
+
+      - name: Rollback on deployment failure
+        if: failure() && steps.deploy-ecs.outcome == 'failure'
+        env:
+          ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          PREVIOUS_TASK_DEF_ARN: ${{ steps.current-task-def.outputs.previous-arn }}
+        run: |
+          echo "Deployment failed. Rolling back to previous task definition: $PREVIOUS_TASK_DEF_ARN"
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "$PREVIOUS_TASK_DEF_ARN"
+          echo "Rollback initiated. Waiting for service stability..."
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE"
+          echo "Rollback complete."
+
+      - name: Setup Node.js for post-deployment tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run non-regression tests against prod ALB
+        env:
+          ALB_URL: ${{ vars.ALB_URL }}
+          NODE_ENV: test
+        run: npm run test:nr

@@ -1,0 +1,197 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint & Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Audit dependencies (critical)
+        run: npm audit --audit-level=critical
+
+      - name: Scan for secrets with TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests with coverage
+        run: npm run test:unit -- --coverage
+
+      - name: Upload coverage report (HTML)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/lcov-report/
+          retention-days: 30
+
+      - name: Upload unit test results (JUnit XML)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: reports/junit.xml
+          retention-days: 30
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: clubmanager_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply database migrations
+        env:
+          PGPASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+        run: psql -h localhost -U test_user -d clubmanager_test -f tests/integration/setup-db.sql
+
+      - name: Apply database seed
+        env:
+          PGPASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+        run: psql -h localhost -U test_user -d clubmanager_test -f tests/integration/seed.sql
+
+      - name: Run integration tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: clubmanager_test
+          DB_USER: test_user
+          DB_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+          DB_TYPE: postgres
+          NODE_ENV: test
+        run: npm run test:integration
+
+      - name: Upload integration test results (JUnit XML)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: reports/junit.xml
+          retention-days: 30
+
+  non-regression-tests:
+    name: Non-Regression Tests
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: clubmanager_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply database migrations
+        env:
+          PGPASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+        run: psql -h localhost -U test_user -d clubmanager_test -f tests/integration/setup-db.sql
+
+      - name: Apply database seed
+        env:
+          PGPASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+        run: psql -h localhost -U test_user -d clubmanager_test -f tests/integration/seed.sql
+
+      - name: Run non-regression tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: clubmanager_test
+          DB_USER: test_user
+          DB_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+          DB_TYPE: postgres
+          NODE_ENV: test
+        run: npm run test:nr
+
+      - name: Upload non-regression test results (JUnit XML)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: non-regression-results
+          path: reports/junit.xml
+          retention-days: 30

@@ -814,4 +814,56 @@ ClubService.checkRenewals = async function () {
   return { checked: members.length, notified: notified };
 };
 
+// =====================================================================
+// DELEGATION TO EXTRACTED SERVICES
+// The functions below have been extracted into dedicated service files.
+// ClubService re-exports them here for backward compatibility so that
+// existing route files (routes/*.js) continue to work unchanged.
+// =====================================================================
+
+var MemberService   = require('./MemberService');
+var PaymentService  = require('./PaymentService');
+var EventService    = require('./EventService');
+var FacilityService = require('./FacilityService');
+var TeamService     = require('./TeamService');
+var ReportService   = require('./ReportService');
+
+// Member functions
+ClubService.getAllMembers       = MemberService.getAllMembers;
+ClubService.getMemberById       = MemberService.getMemberById;
+ClubService.createMember        = MemberService.createMember;
+ClubService.updateMember        = MemberService.updateMember;
+ClubService.deleteMember        = MemberService.deleteMember;
+ClubService.generateMemberNumber = MemberService.generateMemberNumber;
+ClubService.isMembershipExpired = MemberService.isMembershipExpired;
+
+// Payment functions
+ClubService.getPayments         = PaymentService.getPayments;
+ClubService.recordPayment       = PaymentService.recordPayment;
+ClubService.getOverduePayments  = PaymentService.getOverduePayments;
+ClubService.getPendingPayments  = PaymentService.getPendingPayments;
+
+// Event functions
+ClubService.getEvents           = EventService.getEvents;
+ClubService.createEvent         = EventService.createEvent;
+ClubService.recordMatchResult   = EventService.recordMatchResult;
+ClubService.computeMatchResult  = EventService.computeMatchResult;
+
+// Facility functions
+ClubService.getFacilities              = FacilityService.getFacilities;
+ClubService.checkFacilityAvailability  = FacilityService.checkFacilityAvailability;
+ClubService.getBookings                = FacilityService.getBookings;
+ClubService.hasTimeOverlap             = FacilityService.hasTimeOverlap;
+
+// Team functions
+ClubService.getAllTeams  = TeamService.getAllTeams;
+ClubService.getTeamById = TeamService.getTeamById;
+ClubService.createTeam  = TeamService.createTeam;
+ClubService.updateTeam  = TeamService.updateTeam;
+
+// Report / stats functions
+ClubService.getMembershipReport = ReportService.getMembershipReport;
+ClubService.getFinancialReport  = ReportService.getFinancialReport;
+ClubService.getDashboardStats   = ReportService.getDashboardStats;
+
 module.exports = ClubService;
