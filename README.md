@@ -648,6 +648,7 @@ There is no offsite backup. This is a known risk.
 - **2022**: Security audit - bcrypt migration branch created, never merged. GDPR todo added.
 - **2023**: New SMTP server. Minor UI fixes.
 - **2024**: Still running the same server from 2019.
+- **2026**: Applicative modernization by AWS Transform Custom (ATX): reduce technical debt / fix security issues / Add CI/CD / Migrate to AWS (IaC)
 
 ## Contact
 
